@@ -1,10 +1,27 @@
 node_modules/
 backend/node_modules/
+app/Patrol/node_modules/
+
+# Frontend build output
+app/Patrol/dist/
+app/Patrol/.vite/
+coverage/
+
+# Android / Gradle build output
+app/Patrol/android/.gradle/
+app/Patrol/android/**/build/
+app/Patrol/android/.cxx/
+app/Patrol/android/local.properties
+app/Patrol/android/captures/
+
+# Capacitor generated web assets
+app/Patrol/android/app/src/main/assets/public/
 
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
 .env
 .env.*
@@ -14,3 +31,13 @@ backend/sessions/
 backend/mydatabase.db-shm
 backend/mydatabase.db-wal
 backend/mydatabase.db
+
+# Backend packaged output
+backend/dist/
+backend/*.exe
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

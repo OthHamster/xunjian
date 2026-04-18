@@ -1,7 +1,8 @@
 const fs = require("fs");
 const path = require("path");
 
-const configPath = path.join(process.cwd(), "config.json");
+// Always resolve to backend/config.json, regardless of where node is launched from.
+const configPath = path.join(__dirname, "config.json");
 const defaultConfig = {
   port: 1145,
 };

@@ -13,7 +13,7 @@ authRouter.post("/login", (req, res) => {
     id: user.id,
     username: user.username,
     roles: user.roles,
-    EmployeeID: String(user.id),
+    EmployeeID: user.EmployeeID,
   };
   req.session.isAuthenticated = true;
   res.json({

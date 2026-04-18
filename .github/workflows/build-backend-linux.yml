@@ -1,0 +1,46 @@
+﻿name: Build Backend Linux
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - ".github/workflows/build-backend-linux.yml"
+  workflow_dispatch:
+
+jobs:
+  build-linux-backend:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 16
+        uses: actions/setup-node@v4
+        with:
+          node-version: "16"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Rebuild native module
+        run: npm rebuild better-sqlite3
+
+      - name: Build Linux backend binary
+        run: npm run build:linux:node16
+
+      - name: Show dist files
+        run: ls -lah dist
+
+      - name: Upload backend dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-linux-dist
+          path: backend/dist/**
+          if-no-files-found: error

@@ -2,9 +2,12 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const session = require("express-session");
+const http = require('http');
+const { Server } = require('socket.io'); 
 const FileStore = require("session-file-store")(session); // 文件存储
 const app = express();
-
+const server = http.createServer(app);
+const io = new Server(server);
 const router = require("./auth_routers/route.js");
 const checkRole = require("./permission.js");
 const config = require("./config");
@@ -49,6 +52,6 @@ app.get("/test", checkRole(["admin", "viewer"]), (req, res) => {
 });
 
 // 启动服务器
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Express服务器运行在 http://localhost:${PORT}`);
 });

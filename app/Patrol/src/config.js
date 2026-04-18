@@ -1,3 +1,3 @@
 export const CONFIG = {
-  VITE_API_BASE_URL: "117.68.10.96:61735",
+  VITE_API_BASE_URL: "http://8.148.203.45:1145/",
 };

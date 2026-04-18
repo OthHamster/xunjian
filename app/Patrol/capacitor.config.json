@@ -1,5 +1,12 @@
 {
   "appId": "com.otham.app",
   "appName": "Patrol",
-  "webDir": "dist"
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true,
+    "allowNavigation": [
+      "8.148.203.45"
+    ]
+  }
 }

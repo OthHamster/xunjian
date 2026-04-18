@@ -1,9 +1,9 @@
 const express = require("express");
 const datarouter = express.Router();
-const checkRole = require("./permission.js");
+const checkRole = require("../permission.js");
 const Database = require("better-sqlite3");
 const session = require("express-session");
-const { get } = require("./route.js");
+const { get } = require("../auth_routers/route.js");
 
 let db;
 
@@ -16,82 +16,28 @@ const connectDatabase = () => {
     db.pragma("foreign_keys = ON");
 
     const createTables = [
-      `CREATE TABLE IF NOT EXISTS Products (
-        ProductID INTEGER PRIMARY KEY AUTOINCREMENT,
+      `CREATE TABLE IF NOT EXISTS Users (
+        UserID INTEGER PRIMARY KEY ,
         Name TEXT NOT NULL,
-        Category TEXT,
-        Price REAL NOT NULL,
-        Description TEXT
-      )`,
-      `CREATE TABLE IF NOT EXISTS Inventory (
-        InventoryID INTEGER PRIMARY KEY AUTOINCREMENT,
-        ProductID INTEGER NOT NULL,
-        Quantity INTEGER NOT NULL,
-        Location TEXT,
-        FOREIGN KEY (ProductID) REFERENCES Products(ProductID)
-      )`,
-      `CREATE TABLE IF NOT EXISTS Employees (
-        EmployeeID INTEGER PRIMARY KEY AUTOINCREMENT,
-        Name TEXT NOT NULL,
-        Role TEXT NOT NULL, 
-        ContactInfo TEXT,
-        HireDate TEXT
-      )`,
-      `CREATE TABLE IF NOT EXISTS Customers (
-        CustomerID INTEGER PRIMARY KEY AUTOINCREMENT,
-        Name TEXT NOT NULL,
-        ContactInfo TEXT,
-        MembershipLevel TEXT,
-        Points INTEGER DEFAULT 0
-      )`,
-      `CREATE TABLE IF NOT EXISTS Sales (
-        SaleID INTEGER PRIMARY KEY AUTOINCREMENT,
-        EmployeeID INTEGER NOT NULL,
-        CustomerID INTEGER,
-        SaleDate TEXT NOT NULL,
-        TotalAmount REAL NOT NULL,
-        FOREIGN KEY (EmployeeID) REFERENCES Employees(EmployeeID),
-        FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID)
-      )`,
-      `CREATE TABLE IF NOT EXISTS SaleDetails (
-        DetailID INTEGER PRIMARY KEY AUTOINCREMENT,
-        SaleID INTEGER NOT NULL,
-        ProductID INTEGER NOT NULL,
-        Quantity INTEGER NOT NULL,
-        FOREIGN KEY (SaleID) REFERENCES Sales(SaleID)
-
-      )`,
-      `CREATE TABLE IF NOT EXISTS Orders (
-        OrderID INTEGER PRIMARY KEY AUTOINCREMENT,
-        OrderDate TEXT NOT NULL
-      )`,
-      // 注意：修正了原来代码中的逻辑错误，OrderDetails 应该指向 Orders 表
-      `CREATE TABLE IF NOT EXISTS OrderDetails (
-        DetailID INTEGER PRIMARY KEY AUTOINCREMENT,
-        OrderID INTEGER NOT NULL,
-        ProductID INTEGER NOT NULL,
-        Quantity INTEGER NOT NULL,
-        FOREIGN KEY (OrderID) REFERENCES Orders(OrderID) ON DELETE CASCADE ,
-        FOREIGN KEY (ProductID) REFERENCES Products(ProductID)
+        Password INTEGER NOT NULL,
+        Role TEXT NOT NULL
       )`,
     ];
 
-    createTables.forEach((sql) => {
-      db.exec(sql);
+    createTables.forEach((inits) => {
+      db.exec(inits);
     });
-    const sql = `INSERT INTO Employees (EmployeeID,Name, Role) VALUES (?,?,?)`;
-    const stmt = db.prepare(sql);
-    stmt.run(1, "小洪", "收银员");
     console.log("所有表检查/创建完毕");
   } catch (err) {
     console.error("数据库初始化失败:", err.message);
   }
 };
+module.exports = { connectDatabase, datarouter };
 
 // --- API 路由定义 ---
 
 // 简单添加测试
-datarouter.post("/add", checkRole("editor"), (req, res) => {
+/* datarouter.post("/add", checkRole("editor"), (req, res) => {
   const { id, text } = req.body;
   const sql = "INSERT INTO test (id, text) VALUES (?, ?)";
 
@@ -469,5 +415,4 @@ datarouter.post("/confirmOrder", checkRole("inventory"), (req, res) => {
     console.error(err.message);
     return res.status(500).send("数据库操作出错");
   }
-});
-module.exports = { connectDatabase, datarouter };
+}); */

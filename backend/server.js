@@ -5,10 +5,14 @@ const session = require("express-session");
 const FileStore = require("session-file-store")(session); // 文件存储
 const app = express();
 
-const router = require("./route.js");
+const router = require("./auth_routers/route.js");
 const checkRole = require("./permission.js");
 const config = require("./config");
-const { connectDatabase, datarouter } = require("./database_router.js");
+const {
+  connectDatabase,
+  datarouter,
+} = require("./database_routers/database_router.js");
+const { initializeUsers } = require("./database_routers/user_routers");
 const PORT = config.port;
 // 中间件
 app.use(cors());
@@ -33,12 +37,12 @@ app.use(
       httpOnly: true, // 禁止JavaScript访问，增强安全性
       secure: false, // 开发时设为false，生产环境应设为true（仅HTTPS）
     },
-  })
+  }),
 );
 
-
-app.use(router);
 connectDatabase();
+initializeUsers();
+app.use(router);
 app.use(datarouter);
 app.get("/test", checkRole(["admin", "viewer"]), (req, res) => {
   res.json("aaa");

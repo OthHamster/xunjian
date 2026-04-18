@@ -1,9 +1,9 @@
 const express = require("express");
-const router = express.Router();
-const findUserByCredentials = require("./user");
-const checkRole = require("./permission.js");
+const authRouter = express.Router();
+const { findUserByCredentials } = require("../database_routers/user_routers");
+const checkRole = require("../permission.js");
 
-router.post("/login", (req, res) => {
+authRouter.post("/login", (req, res) => {
   const { username, password } = req.body;
   const user = findUserByCredentials(username, password);
   if (!user) {
@@ -13,7 +13,7 @@ router.post("/login", (req, res) => {
     id: user.id,
     username: user.username,
     roles: user.roles,
-    EmployeeID: user.EmployeeID,
+    EmployeeID: String(user.id),
   };
   req.session.isAuthenticated = true;
   res.json({
@@ -21,7 +21,7 @@ router.post("/login", (req, res) => {
     user: req.session.user,
   });
 });
-router.post("/logout", (req, res) => {
+authRouter.post("/logout", (req, res) => {
   if (!req.session.isAuthenticated) {
     return res.status(401).json({ error: "未登录" });
   }
@@ -34,11 +34,11 @@ router.post("/logout", (req, res) => {
     res.json({ success: true });
   });
 });
-router.get("/me", (req, res) => {
+authRouter.get("/me", (req, res) => {
   if (!req.session.isAuthenticated) {
     return res.status(401).json({ error: "未登录" });
   }
   res.json({ user: req.session.user });
 });
 
-module.exports = router;
+module.exports = authRouter;

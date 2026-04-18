@@ -1,0 +1,134 @@
+const Database = require("better-sqlite3");
+
+const db = new Database("./mydatabase.db");
+
+const defaultUsers = [
+	{
+		id: 1,
+		username: "admin",
+		password: "admin123",
+		roles: "admin",
+		EmployeeID: "1",
+	},
+	{
+		id: 2,
+		username: "manager",
+		password: "manager123",
+		roles: "manager",
+		EmployeeID: "1",
+	},
+	{
+		id: 3,
+		username: "cashier",
+		password: "cashier123",
+		roles: "cashier",
+		EmployeeID: "1",
+	},
+	{
+		id: 4,
+		username: "inventory",
+		password: "inventory123",
+		roles: "inventory",
+		EmployeeID: "1",
+	},
+];
+
+function getColumnsMap() {
+	const columns = db.prepare("PRAGMA table_info(Users)").all();
+	const map = new Set();
+
+	columns.forEach((col) => {
+		map.add(col.name);
+	});
+
+	return map;
+}
+
+function ensureUsersSchema() {
+	db.exec(`CREATE TABLE IF NOT EXISTS Users (
+		UserID INTEGER PRIMARY KEY,
+		Username TEXT,
+		Password TEXT NOT NULL,
+		Role TEXT NOT NULL,
+		EmployeeID TEXT NOT NULL DEFAULT '1'
+	)`);
+
+	const columns = getColumnsMap();
+
+	if (!columns.has("Username")) {
+		db.exec("ALTER TABLE Users ADD COLUMN Username TEXT");
+	}
+	if (!columns.has("Role")) {
+		db.exec("ALTER TABLE Users ADD COLUMN Role TEXT");
+	}
+	if (!columns.has("EmployeeID")) {
+		db.exec("ALTER TABLE Users ADD COLUMN EmployeeID TEXT DEFAULT '1'");
+	}
+
+	const columnsAfterAlter = getColumnsMap();
+
+	if (columnsAfterAlter.has("Name")) {
+		db.exec("UPDATE Users SET Username = COALESCE(Username, Name) WHERE Username IS NULL OR Username = ''");
+	}
+	if (columnsAfterAlter.has("roles")) {
+		db.exec("UPDATE Users SET Role = COALESCE(Role, roles) WHERE Role IS NULL OR Role = ''");
+	}
+	db.exec("UPDATE Users SET EmployeeID = COALESCE(EmployeeID, '1') WHERE EmployeeID IS NULL OR EmployeeID = ''");
+}
+
+function seedDefaultUsers() {
+	const count = db.prepare("SELECT COUNT(*) AS count FROM Users").get().count;
+
+	if (count > 0) {
+		return;
+	}
+
+	const insertStmt = db.prepare(
+		"INSERT INTO Users (UserID, Username, Password, Role, EmployeeID) VALUES (?, ?, ?, ?, ?)"
+	);
+
+	const insertMany = db.transaction((users) => {
+		users.forEach((user) => {
+			insertStmt.run(
+				user.id,
+				user.username,
+				user.password,
+				user.roles,
+				user.EmployeeID
+			);
+		});
+	});
+
+	insertMany(defaultUsers);
+}
+
+function initializeUsers() {
+	ensureUsersSchema();
+	seedDefaultUsers();
+}
+
+initializeUsers();
+
+function findUserByCredentials(username, password) {
+	const user = db
+		.prepare(
+			"SELECT UserID, Username, Password, Role, EmployeeID FROM Users WHERE Username = ? AND Password = ?"
+		)
+		.get(username, password);
+
+	if (!user) {
+		return null;
+	}
+
+	return {
+		id: user.UserID,
+		username: user.Username,
+		password: user.Password,
+		roles: user.Role,
+		EmployeeID: String(user.EmployeeID),
+	};
+}
+
+module.exports = {
+	findUserByCredentials,
+};

@@ -19,21 +19,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 16
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: "16"
+          node-version: "20"
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Rebuild native module
         run: npm rebuild better-sqlite3
 
       - name: Build Linux backend binary
-        run: npm run build:linux:node16
+        run: npm run build:linux
 
       - name: Show dist files
         run: ls -lah dist

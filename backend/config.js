@@ -33,4 +33,9 @@ if (fs.existsSync(configPath)) {
   }
 }
 
+const envPort = Number(process.env.PORT);
+if (Number.isInteger(envPort) && envPort > 0) {
+  currentConfig.port = envPort;
+}
+
 module.exports = currentConfig;

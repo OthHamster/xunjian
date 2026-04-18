@@ -1,8 +1,9 @@
 const fs = require("fs");
 const path = require("path");
 
-// Always resolve to backend/config.json, regardless of where node is launched from.
-const configPath = path.join(__dirname, "config.json");
+// In pkg executable mode, read/write config beside the exe; otherwise use backend/config.json.
+const runtimeBaseDir = process.pkg ? path.dirname(process.execPath) : __dirname;
+const configPath = path.join(runtimeBaseDir, "config.json");
 const defaultConfig = {
   port: 1145,
 };

@@ -7,10 +7,31 @@ const { Server } = require("socket.io");
 const FileStore = require("session-file-store")(session); // 文件存储
 const app = express();
 const server = http.createServer(app);
+const allowedOrigins = [
+  "http://localhost",
+  "https://localhost",
+  "capacitor://localhost",
+  "http://localhost:5173",
+  "http://8.148.203.45:1145",
+];
+
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error(`CORS origin not allowed: ${origin}`));
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  credentials: true,
+};
+
 const io = new Server(server, {
   cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
+    origin: allowedOrigins,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true,
   },
 });
 const router = require("./auth_routers/route.js");
@@ -23,7 +44,7 @@ const {
 const { initializeUsers } = require("./database_routers/user_routers");
 const PORT = config.port;
 // 中间件
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.urlencoded({ extended: true }));

@@ -79,7 +79,7 @@ app.use(
     }),
     cookie: {
       maxAge: 24 * 60 * 60 * 1000, // Cookie有效期
-      httpOnly: true, // 禁止JavaScript访问，增强安全性
+      httpOnly: false, // 禁止JavaScript访问，增强安全性
       secure: false, // 开发时设为false，生产环境应设为true（仅HTTPS）
     },
   }),

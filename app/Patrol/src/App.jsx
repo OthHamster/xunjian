@@ -144,6 +144,7 @@ function App() {
   const [loginStatus, setLoginStatus] = useState("idle");
   const [loginMessage, setLoginMessage] = useState("未登录");
   const [userInfo, setUserInfo] = useState(null);
+  const [sessionId, setSessionId] = useState("");
 
   const buildApiUrl = (path) => {
     return new URL(path, apiBaseUrl).toString();
@@ -160,6 +161,7 @@ function App() {
     }
 
     setUserInfo(null);
+    setSessionId("");
     setLoginStatus("idle");
     setLoginMessage("已退出登录");
     navigate("/");
@@ -198,6 +200,7 @@ function App() {
         setLoginStatus("success");
         setLoginMessage("登录成功");
         setUserInfo(nextUser);
+        setSessionId(data.sessionId || "");
 
         if (role === "inspector") {
           navigate("/inspector");
@@ -211,12 +214,14 @@ function App() {
         setLoginStatus("failed");
         setLoginMessage(data?.error || "登录失败");
         setUserInfo(null);
+        setSessionId("");
       }
     } catch (error) {
       console.error("login error:", error);
       setLoginStatus("failed");
       setLoginMessage("网络异常，登录失败");
       setUserInfo(null);
+      setSessionId("");
     }
   };
   //建立socket连接
@@ -245,6 +250,29 @@ function App() {
       socketRef.current = null;
     };
   }, [apiBaseUrl]);
+
+  useEffect(() => {
+    if (!sessionId || !socketRef.current) {
+      return;
+    }
+
+    const sendHeartbeat = () => {
+      const socket = socketRef.current;
+      if (!socket || !socket.connected) {
+        return;
+      }
+
+      socket.emit("heartbeat", { sessionId });
+    };
+
+    // 登录后先立即上报一次，再定时上报
+    sendHeartbeat();
+    const timer = setInterval(sendHeartbeat, 10000);
+
+    return () => {
+      clearInterval(timer);
+    };
+  }, [sessionId, socketStatus]);
 
   return (
     <Routes>

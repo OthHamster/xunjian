@@ -61,6 +61,11 @@ const {
   datarouter,
 } = require("./database_routers/database_router.js");
 const { initializeUsers } = require("./database_routers/user_routers");
+const {
+  bindSocketToSession,
+  touchHeartbeat,
+  clearSocketBindingBySocketId,
+} = require("./global_variable");
 const PORT = config.port;
 
 // 反向代理后启用，确保 secure cookie 能正确工作
@@ -102,8 +107,36 @@ app.get("/test", checkRole(["admin", "viewer"]), (req, res) => {
 });
 io.on("connection", (socket) => {
   console.log("a user connected");
+
+  socket.on("heartbeat", ({ sessionId } = {}) => {
+    if (!sessionId) {
+      socket.emit("heartbeat_ack", { success: false, error: "缺少sessionId" });
+      return;
+    }
+
+    const bound = bindSocketToSession(sessionId, socket.id);
+    if (!bound) {
+      socket.emit("heartbeat_ack", {
+        success: false,
+        error: "session未登录或不存在",
+      });
+      return;
+    }
+
+    touchHeartbeat(sessionId);
+    socket.emit("heartbeat_ack", {
+      success: true,
+      sessionId,
+      socketId: socket.id,
+    });
+  });
+
   socket.on("text_update", (text) => {
     console.log("Received text update:", text);
+  });
+
+  socket.on("disconnect", () => {
+    clearSocketBindingBySocketId(socket.id);
   });
 });
 // 启动服务器

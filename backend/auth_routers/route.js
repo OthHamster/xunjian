@@ -26,6 +26,7 @@ authRouter.post("/login", (req, res) => {
   res.json({
     success: true,
     user: req.session.user,
+    sessionId: req.sessionID,
   });
 });
 authRouter.post("/logout", (req, res) => {

@@ -52,7 +52,7 @@ authRouter.get("/me", (req, res) => {
   res.json({ user: req.session.user });
 });
 
-authRouter.get("/online-users", checkRole(["admin"]), (req, res) => {
+authRouter.get("/online-users", checkRole(["admin", "viewer"]), (req, res) => {
   res.json({
     success: true,
     count: getLoggedInUsers().length,

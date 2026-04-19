@@ -1,5 +1,6 @@
 import { Link, Route, Routes } from "react-router-dom";
 import UserManagerPage from "./UserManagerPage";
+import OnlineUsersPage from "./OnlineUsersPage";
 
 function AdminPage({ userInfo, role, onLogout, apiBaseUrl }) {
   return (
@@ -19,6 +20,9 @@ function AdminPage({ userInfo, role, onLogout, apiBaseUrl }) {
       <div>
         <Link to="/admin/risks">风险处理</Link>
       </div>
+      <div>
+        <Link to="/admin/online-users">在线用户</Link>
+      </div>
       <Routes>
         <Route index element={<div>请选择一个管理子页面</div>} />
         <Route
@@ -26,6 +30,10 @@ function AdminPage({ userInfo, role, onLogout, apiBaseUrl }) {
           element={<UserManagerPage apiBaseUrl={apiBaseUrl} />}
         />
         <Route path="risks" element={<div>这是风险处理</div>} />
+        <Route
+          path="online-users"
+          element={<OnlineUsersPage apiBaseUrl={apiBaseUrl} />}
+        />
       </Routes>
     </>
   );

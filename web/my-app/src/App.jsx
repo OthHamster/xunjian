@@ -278,13 +278,14 @@ function App() {
         }
       />
       <Route
-        path="/viewer"
+        path="/viewer/*"
         element={
           <RequireRole userInfo={userInfo} allowedRoles={["viewer"]}>
             <ViewerPage
               userInfo={userInfo}
               role={getUserRole(userInfo)}
               onLogout={handleLogout}
+              apiBaseUrl={apiBaseUrl}
             />
           </RequireRole>
         }

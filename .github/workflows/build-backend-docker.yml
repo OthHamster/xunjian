@@ -67,13 +67,22 @@ jobs:
           script_stop: true
           script: |
             set -e
-            IMAGE_NAME="ghcr.io/$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')/xunjian-backend"
+            IMAGE_PATH="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')/xunjian-backend"
+            IMAGE_NAME_MIRROR="ghcr.nju.edu.cn/${IMAGE_PATH}:latest"
+            IMAGE_NAME_GHCR="ghcr.io/${IMAGE_PATH}:latest"
+            TARGET_IMAGE=""
 
             echo "Logging in to GHCR"
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
 
-            echo "Pulling latest image"
-            docker pull "${IMAGE_NAME}:latest"
+            echo "Pulling latest image from mirror first"
+            if docker pull "${IMAGE_NAME_MIRROR}"; then
+              TARGET_IMAGE="${IMAGE_NAME_MIRROR}"
+            else
+              echo "Mirror pull failed, fallback to GHCR"
+              docker pull "${IMAGE_NAME_GHCR}"
+              TARGET_IMAGE="${IMAGE_NAME_GHCR}"
+            fi
 
             echo "Stopping old container if exists"
             docker stop xunjian-backend || true
@@ -85,7 +94,7 @@ jobs:
               --restart unless-stopped \
               -p 1145:1145 \
               -e PORT=1145 \
-              "${IMAGE_NAME}:latest"
+              "${TARGET_IMAGE}"
 
             echo "Cleaning dangling images"
             docker image prune -f

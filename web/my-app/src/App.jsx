@@ -272,6 +272,7 @@ function App() {
               userInfo={userInfo}
               role={getUserRole(userInfo)}
               onLogout={handleLogout}
+              apiBaseUrl={apiBaseUrl}
             />
           </RequireRole>
         }

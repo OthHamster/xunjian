@@ -1,6 +1,7 @@
 import { Link, Route, Routes } from "react-router-dom";
+import UserManagerPage from "./UserManagerPage";
 
-function AdminPage({ userInfo, role, onLogout }) {
+function AdminPage({ userInfo, role, onLogout, apiBaseUrl }) {
   return (
     <>
       <h2>管理页面</h2>
@@ -20,7 +21,10 @@ function AdminPage({ userInfo, role, onLogout }) {
       </div>
       <Routes>
         <Route index element={<div>请选择一个管理子页面</div>} />
-        <Route path="usersManager" element={<div>这是用户管理</div>} />
+        <Route
+          path="usersManager"
+          element={<UserManagerPage apiBaseUrl={apiBaseUrl} />}
+        />
         <Route path="risks" element={<div>这是风险处理</div>} />
       </Routes>
     </>

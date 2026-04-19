@@ -4,7 +4,12 @@ const checkRole = require("../permission.js");
 const Database = require("better-sqlite3");
 const session = require("express-session");
 const { get } = require("../auth_routers/route.js");
-const { createUser, deleteUserById } = require("./user_routers");
+const {
+  createUser,
+  deleteUserById,
+  listUsers,
+  updateUserById,
+} = require("./user_routers");
 
 let db;
 
@@ -36,6 +41,16 @@ const connectDatabase = () => {
 module.exports = { connectDatabase, datarouter };
 
 // --- API 路由定义 ---
+
+datarouter.get("/users", checkRole(["admin"]), (req, res) => {
+  try {
+    const users = listUsers();
+    return res.json({ success: true, users });
+  } catch (error) {
+    console.error("list users error:", error);
+    return res.status(500).json({ error: "获取用户列表失败" });
+  }
+});
 
 datarouter.post("/users", checkRole(["admin"]), (req, res) => {
   const { username, password, roles } = req.body || {};
@@ -70,6 +85,34 @@ datarouter.delete("/users/:id", checkRole(["admin"]), (req, res) => {
   }
 
   return res.json({ success: true, deletedUserId: userId });
+});
+
+datarouter.put("/users/:id", checkRole(["admin"]), (req, res) => {
+  const userId = Number.parseInt(req.params.id, 10);
+  const { username, password, roles } = req.body || {};
+
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return res.status(400).json({ error: "用户ID不合法" });
+  }
+
+  try {
+    const user = updateUserById(userId, username, password, roles);
+    if (!user) {
+      return res.status(404).json({ error: "用户不存在" });
+    }
+    return res.json({ success: true, user });
+  } catch (error) {
+    if (
+      error.code === "VALIDATION_ERROR" ||
+      error.code === "INVALID_ROLE" ||
+      error.code === "DUPLICATE_USERNAME"
+    ) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    console.error("update user error:", error);
+    return res.status(500).json({ error: "更新用户失败" });
+  }
 });
 
 // 简单添加测试

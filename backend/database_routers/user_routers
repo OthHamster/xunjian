@@ -22,8 +22,6 @@ const defaultUsers = [
   },
 ];
 
-
-
 function seedDefaultUsers() {
   const count = db.prepare("SELECT COUNT(*) AS count FROM Users").get().count;
 
@@ -45,7 +43,6 @@ function seedDefaultUsers() {
 }
 
 function initializeUsers() {
-
   seedDefaultUsers();
 }
 
@@ -115,10 +112,76 @@ function deleteUserById(userId) {
   return result.changes > 0;
 }
 
+function listUsers() {
+  return db
+    .prepare("SELECT UserID, Name, Password, Role FROM Users ORDER BY UserID ASC")
+    .all()
+    .map((row) => ({
+      id: row.UserID,
+      username: row.Name,
+      password: row.Password,
+      roles: row.Role,
+      EmployeeID: String(row.UserID),
+    }));
+}
+
+function updateUserById(userId, username, password, roles) {
+  const normalizedName = String(username || "").trim();
+  const normalizedPassword = String(password || "").trim();
+  const normalizedRole = String(roles || "").trim();
+
+  if (!normalizedName || !normalizedPassword) {
+    const error = new Error("用户名和密码不能为空");
+    error.code = "VALIDATION_ERROR";
+    throw error;
+  }
+
+  if (!ALLOWED_ROLES.includes(normalizedRole)) {
+    const error = new Error("角色必须是 admin、inspector 或 viewer");
+    error.code = "INVALID_ROLE";
+    throw error;
+  }
+
+  const exists = db
+    .prepare("SELECT UserID FROM Users WHERE UserID = ?")
+    .get(userId);
+
+  if (!exists) {
+    return null;
+  }
+
+  const duplicateName = db
+    .prepare("SELECT UserID FROM Users WHERE Name = ? AND UserID != ?")
+    .get(normalizedName, userId);
+
+  if (duplicateName) {
+    const duplicateError = new Error("用户名已存在");
+    duplicateError.code = "DUPLICATE_USERNAME";
+    throw duplicateError;
+  }
+
+  db.prepare("UPDATE Users SET Name = ?, Password = ?, Role = ? WHERE UserID = ?").run(
+    normalizedName,
+    normalizedPassword,
+    normalizedRole,
+    userId,
+  );
+
+  return {
+    id: userId,
+    username: normalizedName,
+    password: normalizedPassword,
+    roles: normalizedRole,
+    EmployeeID: String(userId),
+  };
+}
+
 module.exports = {
   ALLOWED_ROLES,
   initializeUsers,
   findUserByCredentials,
   createUser,
   deleteUserById,
+  listUsers,
+  updateUserById,
 };

@@ -7,12 +7,15 @@ const { Server } = require("socket.io");
 const FileStore = require("session-file-store")(session); // 文件存储
 const app = express();
 const server = http.createServer(app);
+const useSecureCookie = process.env.COOKIE_SECURE !== "false";
 const allowedOrigins = [
   "http://localhost",
   "https://localhost",
   "capacitor://localhost",
   "http://localhost:5173",
+  "http://localhost:5174",
   "http://8.148.203.45:1145",
+  "https://app.otham.site",
 ];
 
 const localhostDevPattern = /^http:\/\/(localhost|127\.0\.0\.1):\d+$/;
@@ -59,6 +62,10 @@ const {
 } = require("./database_routers/database_router.js");
 const { initializeUsers } = require("./database_routers/user_routers");
 const PORT = config.port;
+
+// 反向代理后启用，确保 secure cookie 能正确工作
+app.set("trust proxy", 1);
+
 // 中间件
 app.use(cors(corsOptions));
 app.use(express.json());
@@ -79,8 +86,9 @@ app.use(
     }),
     cookie: {
       maxAge: 24 * 60 * 60 * 1000, // Cookie有效期
-      httpOnly: false, // 禁止JavaScript访问，增强安全性
-      secure: false, // 开发时设为false，生产环境应设为true（仅HTTPS）
+      httpOnly: true, // 禁止JavaScript访问，增强安全性
+      secure: useSecureCookie, // HTTPS反向代理环境建议为true
+      sameSite: useSecureCookie ? "none" : "lax",
     },
   }),
 );

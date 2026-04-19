@@ -18,6 +18,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Compute image name
+        id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/xunjian-backend" >> "$GITHUB_OUTPUT"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -32,7 +36,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/xunjian-backend
+          images: ${{ steps.image.outputs.name }}
           tags: |
             type=ref,event=branch
             type=sha
@@ -63,11 +67,13 @@ jobs:
           script_stop: true
           script: |
             set -e
+            IMAGE_NAME="ghcr.io/$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')/xunjian-backend"
+
             echo "Logging in to GHCR"
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
 
             echo "Pulling latest image"
-            docker pull ghcr.io/${{ github.repository_owner }}/xunjian-backend:latest
+            docker pull "${IMAGE_NAME}:latest"
 
             echo "Stopping old container if exists"
             docker stop xunjian-backend || true
@@ -79,7 +85,7 @@ jobs:
               --restart unless-stopped \
               -p 1145:1145 \
               -e PORT=1145 \
-              ghcr.io/${{ github.repository_owner }}/xunjian-backend:latest
+              "${IMAGE_NAME}:latest"
 
             echo "Cleaning dangling images"
             docker image prune -f

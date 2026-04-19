@@ -13,6 +13,8 @@ function upsertLoggedInUser(sessionId, user) {
     loginAt: Date.now(),
     socketId: previous ? previous.socketId : null,
     lastHeartbeatAt: previous ? previous.lastHeartbeatAt : null,
+    location: previous ? previous.location : null,
+    locationUpdatedAt: previous ? previous.locationUpdatedAt : null,
   };
 
   if (index >= 0) {
@@ -51,6 +53,25 @@ function touchHeartbeat(sessionId) {
   return true;
 }
 
+function updateLocationBySession(sessionId, location) {
+  const user = loggedInUsers.find((item) => item.sessionId === sessionId);
+  if (!user) {
+    return false;
+  }
+
+  if (!location) {
+    return true;
+  }
+
+  user.location = {
+    latitude: location.latitude,
+    longitude: location.longitude,
+    accuracy: location.accuracy,
+  };
+  user.locationUpdatedAt = Date.now();
+  return true;
+}
+
 function clearSocketBindingBySocketId(socketId) {
   const user = loggedInUsers.find((item) => item.socketId === socketId);
   if (!user) {
@@ -70,6 +91,7 @@ module.exports = {
   removeLoggedInUser,
   bindSocketToSession,
   touchHeartbeat,
+  updateLocationBySession,
   clearSocketBindingBySocketId,
   getLoggedInUsers,
 };

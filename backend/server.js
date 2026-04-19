@@ -64,6 +64,7 @@ const { initializeUsers } = require("./database_routers/user_routers");
 const {
   bindSocketToSession,
   touchHeartbeat,
+  updateLocationBySession,
   clearSocketBindingBySocketId,
 } = require("./global_variable");
 const PORT = config.port;
@@ -108,7 +109,7 @@ app.get("/test", checkRole(["admin", "viewer"]), (req, res) => {
 io.on("connection", (socket) => {
   console.log("a user connected");
 
-  socket.on("heartbeat", ({ sessionId } = {}) => {
+  socket.on("heartbeat", ({ sessionId, location } = {}) => {
     if (!sessionId) {
       socket.emit("heartbeat_ack", { success: false, error: "缺少sessionId" });
       return;
@@ -124,6 +125,7 @@ io.on("connection", (socket) => {
     }
 
     touchHeartbeat(sessionId);
+    updateLocationBySession(sessionId, location);
     socket.emit("heartbeat_ack", {
       success: true,
       sessionId,

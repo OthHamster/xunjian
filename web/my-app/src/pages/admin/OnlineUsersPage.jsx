@@ -73,7 +73,10 @@ function OnlineUsersPage({ apiBaseUrl }) {
               <th>用户名</th>
               <th>权限</th>
               <th>EmployeeID</th>
+              <th>定位</th>
+              <th>定位更新时间</th>
               <th>登录时间</th>
+              <th>上一次心跳</th>
             </tr>
           </thead>
           <tbody>
@@ -84,7 +87,22 @@ function OnlineUsersPage({ apiBaseUrl }) {
                 <td>{user.username}</td>
                 <td>{user.roles}</td>
                 <td>{user.EmployeeID}</td>
+                <td>
+                  {user.location
+                    ? `${user.location.latitude}, ${user.location.longitude}`
+                    : "暂无"}
+                </td>
+                <td>
+                  {user.locationUpdatedAt
+                    ? new Date(user.locationUpdatedAt).toLocaleString()
+                    : "暂无"}
+                </td>
                 <td>{new Date(user.loginAt).toLocaleString()}</td>
+                <td>
+                  {user.lastHeartbeatAt
+                    ? new Date(user.lastHeartbeatAt).toLocaleString()
+                    : "暂无"}
+                </td>
               </tr>
             ))}
           </tbody>

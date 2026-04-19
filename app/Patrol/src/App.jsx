@@ -150,6 +150,32 @@ function App() {
     return new URL(path, apiBaseUrl).toString();
   };
 
+  const getCurrentLocation = () =>
+    new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        resolve(null);
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+          });
+        },
+        () => {
+          resolve(null);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 6000,
+          maximumAge: 10000,
+        },
+      );
+    });
+
   const handleLogout = async () => {
     try {
       await fetch(buildApiUrl("logout"), {
@@ -256,18 +282,21 @@ function App() {
       return;
     }
 
-    const sendHeartbeat = () => {
+    const sendHeartbeat = async () => {
       const socket = socketRef.current;
       if (!socket || !socket.connected) {
         return;
       }
 
-      socket.emit("heartbeat", { sessionId });
+      const location = await getCurrentLocation();
+      socket.emit("heartbeat", { sessionId, location });
     };
 
     // 登录后先立即上报一次，再定时上报
-    sendHeartbeat();
-    const timer = setInterval(sendHeartbeat, 10000);
+    void sendHeartbeat();
+    const timer = setInterval(() => {
+      void sendHeartbeat();
+    }, 10000);
 
     return () => {
       clearInterval(timer);

@@ -2,7 +2,7 @@ import "./App.css";
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import { CONFIG } from "./config";
-
+//测试socketio
 function Textbar({ socket }) {
   const [text, setText] = useState("");
 
@@ -25,12 +25,37 @@ function Textbar({ socket }) {
     </>
   );
 }
+function LoginComponent({ handler,setUname,setPword }) {
+ 
 
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        setUname(event.target.username.value);
+        setPword(event.target.password.value);
+        handler();
+      }}
+    >
+      <div>
+        <label htmlFor="username">用户名</label>
+        <input name="username" type="text" placeholder="请输入用户名" />
+      </div>
+
+      <div>
+        <label htmlFor="password">密码</label>
+        <input name="password" type="password" placeholder="请输入密码" />
+      </div>
+
+      <button type="submit">登录</button>
+    </form>
+  );
+}
 function App() {
   const apiBaseUrl = CONFIG.VITE_API_BASE_URL;
   const [socketStatus, setSocketStatus] = useState("disconnected");
   const [socketInstance, setSocketInstance] = useState(null);
-  const [username, setUsername] = useState("");
+ const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loginStatus, setLoginStatus] = useState("idle");
   const [loginMessage, setLoginMessage] = useState("未登录");
@@ -39,9 +64,9 @@ function App() {
   const buildApiUrl = (path) => {
     return new URL(path, apiBaseUrl).toString();
   };
-
-  const handleLogin = async (event) => {
-    event.preventDefault();
+  //登录函数
+  const handleLogin = async () => {
+  
 
     if (!username.trim() || !password.trim()) {
       setLoginStatus("failed");
@@ -83,7 +108,7 @@ function App() {
       setUserInfo(null);
     }
   };
-
+  //建立socket连接
   useEffect(() => {
     const socket = io(apiBaseUrl, {
       withCredentials: true,
@@ -116,39 +141,14 @@ function App() {
       <div>API: {apiBaseUrl}</div>
       <div>Socket: {socketStatus}</div>
 
-      <form onSubmit={handleLogin}>
-        <div>
-          <label htmlFor="username">用户名</label>
-          <input
-            id="username"
-            type="text"
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-            placeholder="请输入用户名"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="password">密码</label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="请输入密码"
-          />
-        </div>
-
-        <button type="submit" disabled={loginStatus === "loading"}>
-          {loginStatus === "loading" ? "登录中..." : "登录"}
-        </button>
-      </form>
+      <LoginComponent handler={handleLogin} setUname={setUsername} setPword={setPassword} />
 
       <div>登录状态: {loginStatus}</div>
       <div>登录信息: {loginMessage}</div>
       {userInfo && (
         <div>
-          当前用户: {userInfo.username}（{userInfo.roles}）
+          当前用户: {userInfo.username}
+          {userInfo.roles}
         </div>
       )}
 

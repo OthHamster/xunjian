@@ -141,6 +141,8 @@ function App() {
   const apiBaseUrl = CONFIG.VITE_API_BASE_URL;
   const [socketStatus, setSocketStatus] = useState("disconnected");
   const socketRef = useRef(null);
+  const locationWatchIdRef = useRef(null);
+  const lastLocationRef = useRef(null);
   const [loginStatus, setLoginStatus] = useState("idle");
   const [loginMessage, setLoginMessage] = useState("未登录");
   const [userInfo, setUserInfo] = useState(null);
@@ -150,31 +152,12 @@ function App() {
     return new URL(path, apiBaseUrl).toString();
   };
 
-  const getCurrentLocation = () =>
-    new Promise((resolve) => {
-      if (!navigator.geolocation) {
-        resolve(null);
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          resolve({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-          });
-        },
-        () => {
-          resolve(null);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 6000,
-          maximumAge: 10000,
-        },
-      );
-    });
+  const clearLocationWatch = () => {
+    if (navigator.geolocation && locationWatchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(locationWatchIdRef.current);
+    }
+    locationWatchIdRef.current = null;
+  };
 
   const handleLogout = async () => {
     try {
@@ -188,6 +171,8 @@ function App() {
 
     setUserInfo(null);
     setSessionId("");
+    lastLocationRef.current = null;
+    clearLocationWatch();
     setLoginStatus("idle");
     setLoginMessage("已退出登录");
     navigate("/");
@@ -227,6 +212,10 @@ function App() {
         setLoginMessage("登录成功");
         setUserInfo(nextUser);
         setSessionId(data.sessionId || "");
+
+        if (!data.sessionId) {
+          setLoginMessage("登录成功，但未拿到 sessionId，心跳绑定可能失败");
+        }
 
         if (role === "inspector") {
           navigate("/inspector");
@@ -278,30 +267,59 @@ function App() {
   }, [apiBaseUrl]);
 
   useEffect(() => {
-    if (!sessionId || !socketRef.current) {
-      return;
+    if (!userInfo || !socketRef.current) {
+      clearLocationWatch();
+      return undefined;
     }
 
-    const sendHeartbeat = async () => {
+    const sendHeartbeat = (location = lastLocationRef.current) => {
+      if (!sessionId) {
+        return;
+      }
+
       const socket = socketRef.current;
       if (!socket || !socket.connected) {
         return;
       }
 
-      const location = await getCurrentLocation();
       socket.emit("heartbeat", { sessionId, location });
     };
 
-    // 登录后先立即上报一次，再定时上报
-    void sendHeartbeat();
+    if (navigator.geolocation && locationWatchIdRef.current === null) {
+      locationWatchIdRef.current = navigator.geolocation.watchPosition(
+        (position) => {
+          const location = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+          };
+
+          lastLocationRef.current = location;
+          // 实时位置变化时立即上报
+          sendHeartbeat(location);
+        },
+        (error) => {
+          console.error("watchPosition error:", error);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 5000,
+        },
+      );
+    }
+
+    // 登录后先上报一次，再定时兜底上报
+    sendHeartbeat();
     const timer = setInterval(() => {
-      void sendHeartbeat();
+      sendHeartbeat();
     }, 10000);
 
     return () => {
       clearInterval(timer);
+      clearLocationWatch();
     };
-  }, [sessionId, socketStatus]);
+  }, [userInfo, sessionId, socketStatus]);
 
   return (
     <Routes>

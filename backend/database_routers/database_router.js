@@ -4,6 +4,7 @@ const checkRole = require("../permission.js");
 const Database = require("better-sqlite3");
 const session = require("express-session");
 const { get } = require("../auth_routers/route.js");
+const { createUser, deleteUserById } = require("./user_routers");
 
 let db;
 
@@ -17,7 +18,7 @@ const connectDatabase = () => {
 
     const createTables = [
       `CREATE TABLE IF NOT EXISTS Users (
-        UserID INTEGER PRIMARY KEY ,
+        UserID INTEGER PRIMARY KEY AUTOINCREMENT,
         Name TEXT NOT NULL,
         Password INTEGER NOT NULL,
         Role TEXT NOT NULL
@@ -35,6 +36,41 @@ const connectDatabase = () => {
 module.exports = { connectDatabase, datarouter };
 
 // --- API 路由定义 ---
+
+datarouter.post("/users", checkRole(["admin"]), (req, res) => {
+  const { username, password, roles } = req.body || {};
+
+  try {
+    const user = createUser(username, password, roles);
+    return res.status(201).json({ success: true, user });
+  } catch (error) {
+    if (
+      error.code === "VALIDATION_ERROR" ||
+      error.code === "INVALID_ROLE" ||
+      error.code === "DUPLICATE_USERNAME"
+    ) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    console.error("create user error:", error);
+    return res.status(500).json({ error: "创建用户失败" });
+  }
+});
+
+datarouter.delete("/users/:id", checkRole(["admin"]), (req, res) => {
+  const userId = Number.parseInt(req.params.id, 10);
+
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return res.status(400).json({ error: "用户ID不合法" });
+  }
+
+  const deleted = deleteUserById(userId);
+  if (!deleted) {
+    return res.status(404).json({ error: "用户不存在" });
+  }
+
+  return res.json({ success: true, deletedUserId: userId });
+});
 
 // 简单添加测试
 /* datarouter.post("/add", checkRole("editor"), (req, res) => {

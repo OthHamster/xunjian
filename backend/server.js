@@ -15,9 +15,19 @@ const allowedOrigins = [
   "http://8.148.203.45:1145",
 ];
 
+const localhostDevPattern = /^http:\/\/(localhost|127\.0\.0\.1):\d+$/;
+
+function isAllowedOrigin(origin) {
+  if (!origin) {
+    return true;
+  }
+
+  return allowedOrigins.includes(origin) || localhostDevPattern.test(origin);
+}
+
 const corsOptions = {
   origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (isAllowedOrigin(origin)) {
       callback(null, true);
       return;
     }
@@ -29,7 +39,13 @@ const corsOptions = {
 
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    origin(origin, callback) {
+      if (isAllowedOrigin(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error(`Socket.IO CORS origin not allowed: ${origin}`));
+    },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
   },

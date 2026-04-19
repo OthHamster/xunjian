@@ -1,42 +1,28 @@
 const Database = require("better-sqlite3");
 
 const db = new Database("./mydatabase.db");
+const ALLOWED_ROLES = ["admin", "inspector", "viewer"];
+const ROLE_SQL_LIST = ALLOWED_ROLES.map((role) => `'${role}'`).join(", ");
 
 const defaultUsers = [
   {
-    id: 1,
     username: "admin",
     password: "admin123",
     roles: "admin",
   },
   {
-    id: 2,
-    username: "manager",
-    password: "manager123",
-    roles: "manager",
+    username: "inspector",
+    password: "inspector123",
+    roles: "inspector",
   },
   {
-    id: 3,
-    username: "cashier",
-    password: "cashier123",
-    roles: "cashier",
-  },
-  {
-    id: 4,
-    username: "inventory",
-    password: "inventory123",
-    roles: "inventory",
+    username: "viewer",
+    password: "viewer123",
+    roles: "viewer",
   },
 ];
 
-function ensureUsersSchema() {
-  db.exec(`CREATE TABLE IF NOT EXISTS Users (
-		UserID INTEGER PRIMARY KEY,
-		Name TEXT NOT NULL,
-		Password TEXT NOT NULL,
-		Role TEXT NOT NULL
-	)`);
-}
+
 
 function seedDefaultUsers() {
   const count = db.prepare("SELECT COUNT(*) AS count FROM Users").get().count;
@@ -46,12 +32,12 @@ function seedDefaultUsers() {
   }
 
   const insertStmt = db.prepare(
-    "INSERT INTO Users (UserID, Name, Password, Role) VALUES (?, ?, ?, ?)",
+    "INSERT INTO Users (Name, Password, Role) VALUES (?, ?, ?)",
   );
 
   const insertMany = db.transaction((users) => {
     users.forEach((user) => {
-      insertStmt.run(user.id, user.username, user.password, user.roles);
+      insertStmt.run(user.username, user.password, user.roles);
     });
   });
 
@@ -59,11 +45,9 @@ function seedDefaultUsers() {
 }
 
 function initializeUsers() {
-  ensureUsersSchema();
+
   seedDefaultUsers();
 }
-
-initializeUsers();
 
 function findUserByCredentials(username, password) {
   const user = db
@@ -85,7 +69,56 @@ function findUserByCredentials(username, password) {
   };
 }
 
+function createUser(username, password, roles) {
+  const normalizedName = String(username || "").trim();
+  const normalizedPassword = String(password || "").trim();
+  const normalizedRole = String(roles || "").trim();
+
+  if (!normalizedName || !normalizedPassword) {
+    const error = new Error("用户名和密码不能为空");
+    error.code = "VALIDATION_ERROR";
+    throw error;
+  }
+
+  if (!ALLOWED_ROLES.includes(normalizedRole)) {
+    const error = new Error("角色必须是 admin、inspector 或 viewer");
+    error.code = "INVALID_ROLE";
+    throw error;
+  }
+
+  try {
+    const result = db
+      .prepare("INSERT INTO Users (Name, Password, Role) VALUES (?, ?, ?)")
+      .run(normalizedName, normalizedPassword, normalizedRole);
+
+    return {
+      id: result.lastInsertRowid,
+      username: normalizedName,
+      roles: normalizedRole,
+      EmployeeID: String(result.lastInsertRowid),
+    };
+  } catch (error) {
+    if (
+      error &&
+      String(error.message).includes("UNIQUE constraint failed: Users.Name")
+    ) {
+      const duplicateError = new Error("用户名已存在");
+      duplicateError.code = "DUPLICATE_USERNAME";
+      throw duplicateError;
+    }
+    throw error;
+  }
+}
+
+function deleteUserById(userId) {
+  const result = db.prepare("DELETE FROM Users WHERE UserID = ?").run(userId);
+  return result.changes > 0;
+}
+
 module.exports = {
+  ALLOWED_ROLES,
   initializeUsers,
   findUserByCredentials,
+  createUser,
+  deleteUserById,
 };

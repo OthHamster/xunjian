@@ -1,7 +1,6 @@
 const express = require("express");
 const authRouter = express.Router();
 const { findUserByCredentials } = require("../database_routers/user_routers");
-const checkRole = require("../permission.js");
 
 authRouter.post("/login", (req, res) => {
   const { username, password } = req.body;

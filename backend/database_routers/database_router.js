@@ -3,7 +3,9 @@ const datarouter = express.Router();
 const checkRole = require("../permission.js");
 const Database = require("better-sqlite3");
 const session = require("express-session");
+const path = require("path");
 const { get } = require("../auth_routers/route.js");
+const routeUtils = require("./route_utils");
 const {
   createUser,
   deleteUserById,
@@ -18,22 +20,142 @@ const connectDatabase = () => {
     db = new Database("./mydatabase.db", { verbose: console.log });
     console.log("成功连接到 SQLite 数据库 (better-sqlite3)");
 
+    // 加载 SpatiaLite 扩展
+    try {
+      const spatialite = require("spatialite");
+      const spatialiteExtensionPath = path.join(
+        __dirname,
+        "../assets/mod_spatialite.dll",
+      );
+      db.loadExtension(spatialiteExtensionPath);
+      console.log("✓ SpatiaLite 扩展加载成功");
+    } catch (e) {
+      console.warn("⚠ SpatiaLite 扩展加载失败，尝试加载备用路径...", e.message);
+      try {
+        const spatialitePath = path.join(
+          __dirname,
+          "../node_modules/spatialite/lib",
+        );
+        db.loadExtension("mod_spatialite");
+      } catch (e2) {
+        console.error("✗ 无法加载 SpatiaLite，请确保已安装 spatialite 包");
+      }
+    }
+
     db.pragma("journal_mode = WAL");
     db.pragma("foreign_keys = ON");
+    routeUtils.setDatabase(db);
+
+    // 初始化 SpatiaLite 空间元数据
+    try {
+      db.exec("SELECT InitSpatialMetadata(1)");
+      console.log("✓ SpatiaLite 空间元数据初始化完成");
+    } catch (e) {
+      console.log("✓ SpatiaLite 空间元数据已存在");
+    }
 
     const createTables = [
-      `CREATE TABLE IF NOT EXISTS Users (
+      `CREATE TABLE IF NOT EXISTS users (
         UserID INTEGER PRIMARY KEY AUTOINCREMENT,
         Name TEXT NOT NULL,
-        Password INTEGER NOT NULL,
-        Role TEXT NOT NULL
+        Password TEXT NOT NULL,
+        Role TEXT NOT NULL,
+        CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`,
+
+      `CREATE TABLE IF NOT EXISTS route (
+        RouteID INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`,
+
+      `CREATE TABLE IF NOT EXISTS risks (
+        RiskID INTEGER PRIMARY KEY AUTOINCREMENT,
+        ReporterUserID INTEGER NOT NULL,
+        RouteID INTEGER,
+        Address TEXT,
+        Longitude REAL NOT NULL,
+        Latitude REAL NOT NULL,
+        PhotoURL TEXT,
+        Description TEXT NOT NULL,
+        RiskLevel TEXT NOT NULL CHECK (RiskLevel IN ('low','medium','high')),
+        Status TEXT NOT NULL DEFAULT 'open' CHECK (Status IN ('open','resolved')),
+        ReportedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        ResolvedAt DATETIME,
+        RelatedRisk INTEGER,
+        ResolvedByUserID INTEGER,
+        ResolveNote TEXT,
+        
+        FOREIGN KEY (ReporterUserID) REFERENCES users(UserID),
+        FOREIGN KEY (ResolvedByUserID) REFERENCES users(UserID),
+        FOREIGN KEY (RouteID) REFERENCES route(RouteID),
+        FOREIGN KEY (RelatedRisk) REFERENCES risks(RiskID)
+      )`,
+
+      `CREATE TABLE IF NOT EXISTS checkpoint (
+        CheckpointID INTEGER PRIMARY KEY AUTOINCREMENT,
+        RouteID INTEGER NOT NULL,
+        Name TEXT NOT NULL,
+        SeqNo INTEGER NOT NULL,
+        Longitude REAL NOT NULL,
+        Latitude REAL NOT NULL,
+        CheckpointType TEXT,
+        Status TEXT NOT NULL DEFAULT 'active' CHECK (Status IN ('active','inactive')),
+        CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UpdatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        
+        FOREIGN KEY (RouteID) REFERENCES route(RouteID),
+        UNIQUE (RouteID, SeqNo)
+      )`,
+
+      `CREATE TABLE IF NOT EXISTS checkin (
+        CheckinID INTEGER PRIMARY KEY AUTOINCREMENT,
+        CheckpointID INTEGER NOT NULL,
+        UserID INTEGER NOT NULL,
+        CheckinTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        Longitude REAL NOT NULL,
+        Latitude REAL NOT NULL,
+        Result TEXT NOT NULL CHECK (Result IN ('pass','fail')),
+        PhotoURL TEXT,
+        Note TEXT,
+        
+        FOREIGN KEY (CheckpointID) REFERENCES checkpoint(CheckpointID),
+        FOREIGN KEY (UserID) REFERENCES users(UserID)
       )`,
     ];
 
     createTables.forEach((inits) => {
       db.exec(inits);
     });
-    console.log("所有表检查/创建完毕");
+    console.log("✓ 所有表检查/创建完毕");
+
+    // 为 route 表添加 WGS84 和 UTM 几何列
+    try {
+      db.exec(
+        `SELECT AddGeometryColumn('route', 'WGS84', 4326, 'LINESTRING', 'XY')`,
+      );
+      db.exec(
+        `SELECT AddGeometryColumn('route', 'UTM', 32651, 'LINESTRING', 'XY')`,
+      );
+      console.log("✓ WGS84/UTM 几何列添加完成");
+    } catch (e) {
+      if (e.message.includes("geometry column already exists")) {
+        console.log("✓ WGS84/UTM 几何列已存在");
+      } else {
+        console.warn("⚠ 添加几何列时出现问题:", e.message);
+      }
+    }
+
+    // 为几何列创建空间索引
+    try {
+      db.exec(`SELECT CreateSpatialIndex('route', 'WGS84')`);
+      db.exec(`SELECT CreateSpatialIndex('route', 'UTM')`);
+      console.log("✓ 空间索引创建完成");
+    } catch (e) {
+      console.log("ℹ 空间索引状态:", e.message);
+    }
   } catch (err) {
     console.error("数据库初始化失败:", err.message);
   }
@@ -114,6 +236,123 @@ datarouter.put("/users/:id", checkRole(["admin"]), (req, res) => {
     return res.status(500).json({ error: "更新用户失败" });
   }
 });
+
+datarouter.get(
+  "/routes",
+  checkRole(["admin", "viewer", "inspector"]),
+  (req, res) => {
+    try {
+      const result = routeUtils.listRoutes();
+      if (!result.success) {
+        return res.status(500).json({ error: result.error });
+      }
+
+      return res.json(result);
+    } catch (error) {
+      console.error("list routes error:", error);
+      return res.status(500).json({ error: "获取路线列表失败" });
+    }
+  },
+);
+
+datarouter.get(
+  "/routes/:id",
+  checkRole(["admin", "viewer", "inspector"]),
+  (req, res) => {
+    const routeId = Number.parseInt(req.params.id, 10);
+
+    if (!Number.isInteger(routeId) || routeId <= 0) {
+      return res.status(400).json({ error: "路线ID不合法" });
+    }
+
+    try {
+      const result = routeUtils.getRoute(routeId);
+      if (!result.success) {
+        return res.status(404).json({ error: result.error });
+      }
+
+      return res.json(result);
+    } catch (error) {
+      console.error("get route error:", error);
+      return res.status(500).json({ error: "获取路线失败" });
+    }
+  },
+);
+
+datarouter.post("/routes", checkRole(["admin"]), (req, res) => {
+  const { name, coordinates } = req.body || {};
+
+  try {
+    const result = routeUtils.addRoute(name, coordinates);
+    if (!result.success) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    return res.status(201).json(result);
+  } catch (error) {
+    console.error("add route error:", error);
+    return res.status(500).json({ error: "添加路线失败" });
+  }
+});
+
+datarouter.put("/routes/:id", checkRole(["admin"]), (req, res) => {
+  const routeId = Number.parseInt(req.params.id, 10);
+  const { coordinates } = req.body || {};
+
+  if (!Number.isInteger(routeId) || routeId <= 0) {
+    return res.status(400).json({ error: "路线ID不合法" });
+  }
+
+  try {
+    const result = routeUtils.updateRouteGeometry(routeId, coordinates);
+    if (!result.success) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    return res.json(result);
+  } catch (error) {
+    console.error("update route error:", error);
+    return res.status(500).json({ error: "更新路线失败" });
+  }
+});
+
+datarouter.post(
+  "/routes/:id/check-location",
+  checkRole(["admin", "inspector"]),
+  (req, res) => {
+    const routeId = Number.parseInt(req.params.id, 10);
+    const { longitude, latitude, bufferDistance } = req.body || {};
+
+    if (!Number.isInteger(routeId) || routeId <= 0) {
+      return res.status(400).json({ error: "路线ID不合法" });
+    }
+
+    const longitudeValue = Number(longitude);
+    const latitudeValue = Number(latitude);
+
+    if (!Number.isFinite(longitudeValue) || !Number.isFinite(latitudeValue)) {
+      return res.status(400).json({ error: "经纬度不合法" });
+    }
+
+    try {
+      const result = routeUtils.checkPointNearRoute(
+        routeId,
+        longitudeValue,
+        latitudeValue,
+        Number.isFinite(Number(bufferDistance)) ? Number(bufferDistance) : 50,
+      );
+
+      if (!result.success) {
+        return res.status(404).json({ error: result.error });
+      }
+
+      return res.json(result);
+    } catch (error) {
+      console.error("check route location error:", error);
+      return res.status(500).json({ error: "偏离监控失败" });
+    }
+  },
+);
 
 // 简单添加测试
 /* datarouter.post("/add", checkRole("editor"), (req, res) => {

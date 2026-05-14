@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import MapContainer from "./MapContainer";
 
 const POLL_INTERVAL_MS = 2000;
 
@@ -63,6 +64,7 @@ function OnlineUsersPage({ apiBaseUrl }) {
 
   return (
     <div>
+      <MapContainer></MapContainer>
       <h3>在线用户</h3>
       <div style={{ marginBottom: 12 }}>
         <button type="button" onClick={loadOnlineUsers} disabled={loading}>

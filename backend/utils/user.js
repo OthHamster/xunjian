@@ -1,8 +1,21 @@
-const Database = require("better-sqlite3");
+/**
+ * 用户管理相关的工具函数
+ * 
+ */
 
-const db = new Database("./mydatabase.db");
 const ALLOWED_ROLES = ["admin", "inspector", "viewer"];
-const ROLE_SQL_LIST = ALLOWED_ROLES.map((role) => `'${role}'`).join(", ");
+
+let db;
+
+/**
+ * 注入数据库实例（必须在调用其他函数前设置）
+ *
+ * @param {Database} dbInstance - better-sqlite3 实例
+ * @returns {void}
+ */
+const setDatabase = (dbInstance) => {
+  db = dbInstance;
+};
 
 const defaultUsers = [
   {
@@ -22,15 +35,31 @@ const defaultUsers = [
   },
 ];
 
-function seedDefaultUsers() {
-  const count = db.prepare("SELECT COUNT(*) AS count FROM Users").get().count;
+/**
+ * 内部辅助：断言数据库已初始化
+ * @private
+ */
+function assertDatabase() {
+  if (!db) {
+    throw new Error("数据库未初始化，请先调用 setDatabase()");
+  }
+}
 
-  if (count > 0) {
+/**
+ * 如果 users 表为空，则插入一组默认用户（用于开发/初始化）
+ *
+ * @returns {void}
+ */
+function seedDefaultUsers() {
+  assertDatabase();
+
+  const countRow = db.prepare("SELECT COUNT(*) AS count FROM users").get();
+  if (countRow.count > 0) {
     return;
   }
 
   const insertStmt = db.prepare(
-    "INSERT INTO Users (Name, Password, Role) VALUES (?, ?, ?)",
+    "INSERT INTO users (Name, Password, Role) VALUES (?, ?, ?)",
   );
 
   const insertMany = db.transaction((users) => {
@@ -42,14 +71,28 @@ function seedDefaultUsers() {
   insertMany(defaultUsers);
 }
 
+/**
+ * 初始化用户入口（目前只是调用 seedDefaultUsers）
+ *
+ * @returns {void}
+ */
 function initializeUsers() {
   seedDefaultUsers();
 }
 
+/**
+ * 根据用户名与密码查找用户（用于登录验证）
+ *
+ * @param {string} username
+ * @param {string} password
+ * @returns {Object|null} 找到返回用户对象，否则返回 null
+ */
 function findUserByCredentials(username, password) {
+  assertDatabase();
+
   const user = db
     .prepare(
-      "SELECT UserID, Name, Password, Role FROM Users WHERE Name = ? AND Password = ?",
+      "SELECT UserID, Name, Password, Role FROM users WHERE Name = ? AND Password = ?",
     )
     .get(username, password);
 
@@ -66,7 +109,18 @@ function findUserByCredentials(username, password) {
   };
 }
 
+/**
+ * 创建新用户
+ *
+ * @param {string} username
+ * @param {string} password
+ * @param {string} roles - 角色名称，应在 ALLOWED_ROLES 中
+ * @returns {Object} 新创建的用户信息（含 id 与 EmployeeID）
+ * @throws {Error} 验证或重复用户名错误
+ */
 function createUser(username, password, roles) {
+  assertDatabase();
+
   const normalizedName = String(username || "").trim();
   const normalizedPassword = String(password || "").trim();
   const normalizedRole = String(roles || "").trim();
@@ -85,7 +139,7 @@ function createUser(username, password, roles) {
 
   try {
     const result = db
-      .prepare("INSERT INTO Users (Name, Password, Role) VALUES (?, ?, ?)")
+      .prepare("INSERT INTO users (Name, Password, Role) VALUES (?, ?, ?)")
       .run(normalizedName, normalizedPassword, normalizedRole);
 
     return {
@@ -96,8 +150,7 @@ function createUser(username, password, roles) {
     };
   } catch (error) {
     if (
-      error &&
-      String(error.message).includes("UNIQUE constraint failed: Users.Name")
+      String(error.message).includes("UNIQUE constraint failed: users.Name")
     ) {
       const duplicateError = new Error("用户名已存在");
       duplicateError.code = "DUPLICATE_USERNAME";
@@ -107,14 +160,31 @@ function createUser(username, password, roles) {
   }
 }
 
+/**
+ * 按 ID 删除用户
+ *
+ * @param {number} userId
+ * @returns {boolean} 删除成功返回 true，否则 false
+ */
 function deleteUserById(userId) {
-  const result = db.prepare("DELETE FROM Users WHERE UserID = ?").run(userId);
+  assertDatabase();
+
+  const result = db.prepare("DELETE FROM users WHERE UserID = ?").run(userId);
   return result.changes > 0;
 }
 
+/**
+ * 列出所有用户
+ *
+ * @returns {Array<Object>} 用户数组
+ */
 function listUsers() {
+  assertDatabase();
+
   return db
-    .prepare("SELECT UserID, Name, Password, Role FROM Users ORDER BY UserID ASC")
+    .prepare(
+      "SELECT UserID, Name, Password, Role FROM users ORDER BY UserID ASC",
+    )
     .all()
     .map((row) => ({
       id: row.UserID,
@@ -125,7 +195,19 @@ function listUsers() {
     }));
 }
 
+/**
+ * 按 ID 更新用户信息
+ *
+ * @param {number} userId
+ * @param {string} username
+ * @param {string} password
+ * @param {string} roles
+ * @returns {Object|null} 更新后的用户对象，找不到返回 null
+ * @throws {Error} 验证或重复用户名错误
+ */
 function updateUserById(userId, username, password, roles) {
+  assertDatabase();
+
   const normalizedName = String(username || "").trim();
   const normalizedPassword = String(password || "").trim();
   const normalizedRole = String(roles || "").trim();
@@ -143,7 +225,7 @@ function updateUserById(userId, username, password, roles) {
   }
 
   const exists = db
-    .prepare("SELECT UserID FROM Users WHERE UserID = ?")
+    .prepare("SELECT UserID FROM users WHERE UserID = ?")
     .get(userId);
 
   if (!exists) {
@@ -151,7 +233,7 @@ function updateUserById(userId, username, password, roles) {
   }
 
   const duplicateName = db
-    .prepare("SELECT UserID FROM Users WHERE Name = ? AND UserID != ?")
+    .prepare("SELECT UserID FROM users WHERE Name = ? AND UserID != ?")
     .get(normalizedName, userId);
 
   if (duplicateName) {
@@ -160,12 +242,9 @@ function updateUserById(userId, username, password, roles) {
     throw duplicateError;
   }
 
-  db.prepare("UPDATE Users SET Name = ?, Password = ?, Role = ? WHERE UserID = ?").run(
-    normalizedName,
-    normalizedPassword,
-    normalizedRole,
-    userId,
-  );
+  db.prepare(
+    "UPDATE users SET Name = ?, Password = ?, Role = ? WHERE UserID = ?",
+  ).run(normalizedName, normalizedPassword, normalizedRole, userId);
 
   return {
     id: userId,
@@ -178,6 +257,7 @@ function updateUserById(userId, username, password, roles) {
 
 module.exports = {
   ALLOWED_ROLES,
+  setDatabase,
   initializeUsers,
   findUserByCredentials,
   createUser,

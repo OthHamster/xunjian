@@ -1,12 +1,16 @@
+/**
+ * 用户验证相关的api
+ *
+ */
 const express = require("express");
 const authRouter = express.Router();
-const { findUserByCredentials } = require("../database_routers/user_routers");
-const checkRole = require("../permission.js");
+const { findUserByCredentials } = require("./user.js");
+const checkRole = require("../utils/permission.js");
 const {
   upsertLoggedInUser,
   removeLoggedInUser,
   getLoggedInUsers,
-} = require("../global_variable");
+} = require("../utils/global_variable.js");
 
 authRouter.post("/login", (req, res) => {
   const { username, password } = req.body;

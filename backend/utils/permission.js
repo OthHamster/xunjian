@@ -1,3 +1,9 @@
+/**
+ * 生成 Express 中间件以校验用户角色权限
+ *
+ * @param {Array<string>} roles - 允许访问的角色列表，例如 ['admin','inspector']
+ * @returns {Function} Express 中间件 (req, res, next)
+ */
 function checkRole(roles) {
   return (req, res, next) => {
     if (!req.session.isAuthenticated) {

@@ -53,20 +53,18 @@ const io = new Server(server, {
     credentials: true,
   },
 });
-const router = require("./auth_routers/route.js");
-const checkRole = require("./permission.js");
+const router = require("./routers/auth.js");
+const checkRole = require("./utils/permission.js");
 const config = require("./config");
-const {
-  connectDatabase,
-  datarouter,
-} = require("./database_routers/database_router.js");
-const { initializeUsers } = require("./database_routers/user_routers");
+const { connectDatabase } = require("./utils/database.js");
+const { datarouter } = require("./routers/user.js");
+const { initializeUsers } = require("./utils/user.js");
 const {
   bindSocketToSession,
   touchHeartbeat,
   updateLocationBySession,
   clearSocketBindingBySocketId,
-} = require("./global_variable");
+} = require("./utils/global_variable.js");
 const PORT = config.port;
 
 // 反向代理后启用，确保 secure cookie 能正确工作

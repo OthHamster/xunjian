@@ -1,6 +1,6 @@
 /**
  * 全局变量和相关操作函数
- * 
+ *
  */
 const loggedInUsers = [];
 

@@ -2,7 +2,9 @@ const fs = require("fs");
 const path = require("path");
 
 // In pkg executable mode, read/write config beside the exe; otherwise use backend/config.json.
-const runtimeBaseDir = process.pkg ? path.dirname(process.execPath) : __dirname;
+const runtimeBaseDir = process.pkg
+  ? path.dirname(process.execPath)
+  : path.join(__dirname, "..");
 const configPath = path.join(runtimeBaseDir, "config.json");
 const defaultConfig = {
   port: 1145,

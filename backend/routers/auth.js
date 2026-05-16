@@ -4,7 +4,7 @@
  */
 const express = require("express");
 const authRouter = express.Router();
-const { findUserByCredentials } = require("./user.js");
+const { findUserByCredentials } = require("../utils/user.js");
 const checkRole = require("../utils/permission.js");
 const {
   upsertLoggedInUser,

@@ -55,7 +55,7 @@ const io = new Server(server, {
 });
 const router = require("./routers/auth.js");
 const checkRole = require("./utils/permission.js");
-const config = require("./config");
+const config = require("./utils/config.js");
 const { connectDatabase } = require("./utils/database.js");
 const { datarouter } = require("./routers/user.js");
 const { initializeUsers } = require("./utils/user.js");

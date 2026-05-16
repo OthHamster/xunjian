@@ -126,7 +126,7 @@ const createTables = () => {
 
   tables.forEach((sql) => db.exec(sql));
 
-  try {
+  /*try {
     db.exec(
       `SELECT AddGeometryColumn('route', 'WGS84', 4326, 'LINESTRING', 'XY')`,
     );
@@ -138,7 +138,7 @@ const createTables = () => {
       throw error;
     }
   }
-
+*/
   try {
     db.exec(`SELECT CreateSpatialIndex('route', 'WGS84')`);
     db.exec(`SELECT CreateSpatialIndex('route', 'UTM')`);

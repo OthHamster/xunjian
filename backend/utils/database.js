@@ -14,6 +14,49 @@ const userUtils = require("./user");
 
 let db;
 
+const hasTable = (tableName) => {
+  const row = db
+    .prepare(
+      "SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1",
+    )
+    .get(tableName);
+  return Boolean(row?.ok);
+};
+
+/**
+ * 初始化并校验 SpatiaLite 元数据表。
+ * 仅当 geometry_columns 存在时，后续几何列和空间索引创建才可执行。
+ *
+ * @returns {boolean} 元数据可用返回 true，否则 false
+ */
+const ensureSpatialMetadata = () => {
+  if (hasTable("geometry_columns")) {
+    return true;
+  }
+
+  const initStatements = [
+    "SELECT InitSpatialMetadata(1)",
+    "SELECT InitSpatialMetadata()",
+  ];
+
+  for (const sql of initStatements) {
+    try {
+      db.exec(sql);
+      if (hasTable("geometry_columns")) {
+        console.log("✓ SpatiaLite 空间元数据初始化完成");
+        return true;
+      }
+    } catch (error) {
+      console.warn(`⚠ 执行 ${sql} 失败: ${error.message}`);
+    }
+  }
+
+  console.error(
+    "✗ SpatiaLite 空间元数据不可用：未检测到 geometry_columns，已跳过几何列与空间索引创建",
+  );
+  return false;
+};
+
 /**
  * 尝试加载 SpatiaLite 扩展（按候选路径顺序尝试）
  *
@@ -58,7 +101,7 @@ const loadSpatialiteExtension = () => {
  *
  * @returns {void}
  */
-const createTables = () => {
+const createTables = (spatialReady) => {
   const tables = [
     `CREATE TABLE IF NOT EXISTS users (
       UserID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -126,24 +169,40 @@ const createTables = () => {
 
   tables.forEach((sql) => db.exec(sql));
 
-  /*try {
+  if (!spatialReady) {
+    return;
+  }
+
+  try {
     db.exec(
       `SELECT AddGeometryColumn('route', 'WGS84', 4326, 'LINESTRING', 'XY')`,
     );
+  } catch (error) {
+    if (!String(error.message).includes("geometry column already exists")) {
+      console.warn("⚠ 创建 route.WGS84 几何列失败:", error.message);
+    }
+  }
+
+  try {
     db.exec(
       `SELECT AddGeometryColumn('route', 'UTM', 32651, 'LINESTRING', 'XY')`,
     );
   } catch (error) {
     if (!String(error.message).includes("geometry column already exists")) {
-      throw error;
+      console.warn("⚠ 创建 route.UTM 几何列失败:", error.message);
     }
   }
-*/
+
   try {
     db.exec(`SELECT CreateSpatialIndex('route', 'WGS84')`);
+  } catch (error) {
+    console.log("ℹ route.WGS84 空间索引状态:", error.message);
+  }
+
+  try {
     db.exec(`SELECT CreateSpatialIndex('route', 'UTM')`);
   } catch (error) {
-    console.log("ℹ 空间索引状态:", error.message);
+    console.log("ℹ route.UTM 空间索引状态:", error.message);
   }
 };
 
@@ -172,13 +231,9 @@ const connectDatabase = () => {
   routeUtils.setDatabase(db);
   userUtils.setDatabase(db);
 
-  try {
-    db.exec("SELECT InitSpatialMetadata(1)");
-  } catch (error) {
-    console.log("✓ SpatiaLite 空间元数据已存在");
-  }
+  const spatialReady = ensureSpatialMetadata();
 
-  createTables();
+  createTables(spatialReady);
   console.log("✓ 所有表检查/创建完毕");
 
   return db;

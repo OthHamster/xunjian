@@ -88,6 +88,26 @@ routeRouter.put("/routes/:id", checkRole(["admin"]), (req, res) => {
   }
 });
 
+routeRouter.delete("/routes/:id", checkRole(["admin"]), (req, res) => {
+  const routeId = Number.parseInt(req.params.id, 10);
+
+  if (!Number.isInteger(routeId) || routeId <= 0) {
+    return res.status(400).json({ error: "路线ID不合法" });
+  }
+
+  try {
+    const result = routeUtils.deleteRoute(routeId);
+    if (!result.success) {
+      return res.status(404).json({ error: result.error });
+    }
+
+    return res.json(result);
+  } catch (error) {
+    console.error("delete route error:", error);
+    return res.status(500).json({ error: "删除路线失败" });
+  }
+});
+
 routeRouter.post(
   "/routes/:id/check-location",
   checkRole(["admin", "inspector"]),
@@ -126,4 +146,4 @@ routeRouter.post(
   },
 );
 
-module.exports = routeRouter;
+module.exports = { routeRouter };

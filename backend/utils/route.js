@@ -8,17 +8,31 @@ let db;
 const WGS84_SRID = 4326;
 const UTM_SRID = 32651;
 
+// 检查当前 SQLite 数据库中是否存在指定表。
+const hasTable = (tableName) => {
+  const row = db
+    .prepare(
+      "SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1",
+    )
+    .get(tableName);
+  return Boolean(row?.ok);
+};
+
+
 /**
  * 设置数据库实例
  * @param {Database} dbInstance - better-sqlite3 数据库实例
  */
+// 注入 better-sqlite3 实例供所有工具函数使用。
 const setDatabase = (dbInstance) => {
   db = dbInstance;
 };
 
+// 将坐标对转换为 WKT LINESTRING。
 const buildLineString = (coordinates) =>
   `LINESTRING(${coordinates.map((coord) => `${coord[0]} ${coord[1]}`).join(",")})`;
 
+// 解析 WKT LINESTRING 为 [lon, lat] 坐标对。
 const parseLinestring = (wktLinestring) => {
   if (!wktLinestring) return [];
 
@@ -31,25 +45,43 @@ const parseLinestring = (wktLinestring) => {
   });
 };
 
+// 生成 WGS84/UTM 的 WKT 以便插入或更新。
 const buildRoutePayload = (coordinates) => {
+  if (!db) {
+    throw new Error("数据库未初始化");
+  }
+
+  if (!hasTable("spatial_ref_sys")) {
+    throw new Error("空间元数据未初始化：缺少 spatial_ref_sys");
+  }
+
+
   const wgs84Wkt = buildLineString(coordinates);
 
+  // 测试解析 (使用 CAST 确保 SRID 是整数)
+  const geomTest = db
+    .prepare(
+      `
+    SELECT AsText(ST_GeomFromText(?, CAST(? AS INTEGER))) AS geom
+  `,
+    )
+    .get(wgs84Wkt, WGS84_SRID);
+  console.log("GeomFromText 解析结果:", geomTest);
+
+  // 恢复使用动态参数的查询，并在 SQL 中强制转换 SRID 为 INTEGER
   const stmt = db.prepare(`
-    SELECT AsText(ST_Transform(GeomFromText(?, ?), ?)) AS utm_wkt
+    SELECT AsText(ST_Transform(ST_GeomFromText(?, CAST(? AS INTEGER)), CAST(? AS INTEGER))) AS utm_wkt
   `);
 
+  // 执行转换
   const row = stmt.get(wgs84Wkt, WGS84_SRID, UTM_SRID);
-
-  if (!row?.utm_wkt) {
-    throw new Error("UTM 路径转换失败");
-  }
+  console.log("UTM转换结果 row:", row);
 
   return {
     wgs84Wkt,
-    utmWkt: row.utm_wkt,
+    utmWkt: row ? row.utm_wkt : null,
   };
 };
-
 /**
  * 添加新路线（包含几何数据）
  * @param {string} routeName - 路线名称
@@ -74,8 +106,8 @@ const addRoute = (routeName, coordinates) => {
 
     const geomStmt = db.prepare(`
       UPDATE route
-      SET WGS84 = GeomFromText(?, ?),
-          UTM = GeomFromText(?, ?)
+      SET WGS84 = GeomFromText(?, CAST(? AS INTEGER)),
+          UTM = GeomFromText(?, CAST(? AS INTEGER))
       WHERE RouteID = ?
     `);
 
@@ -197,8 +229,8 @@ const updateRouteGeometry = (routeId, coordinates) => {
 
     const stmt = db.prepare(`
       UPDATE route
-      SET WGS84 = GeomFromText(?, ?),
-          UTM = GeomFromText(?, ?),
+      SET WGS84 = GeomFromText(?, CAST(? AS INTEGER)),
+          UTM = GeomFromText(?, CAST(? AS INTEGER)),
           UpdatedAt = datetime('now')
       WHERE RouteID = ?
     `);
@@ -223,6 +255,31 @@ const updateRouteGeometry = (routeId, coordinates) => {
     };
   } catch (error) {
     console.error("更新路线几何数据失败:", error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * 删除路线
+ * @param {number} routeId - 路线 ID
+ * @returns {Object} 删除结果
+ */
+const deleteRoute = (routeId) => {
+  try {
+    const stmt = db.prepare(`
+      DELETE FROM route
+      WHERE RouteID = ?
+    `);
+
+    const result = stmt.run(routeId);
+
+    if (result.changes === 0) {
+      return { success: false, error: "路线不存在" };
+    }
+
+    return { success: true, routeId };
+  } catch (error) {
+    console.error("删除路线失败:", error.message);
     return { success: false, error: error.message };
   }
 };
@@ -262,7 +319,7 @@ const checkPointNearRoute = (
       SELECT 
         ST_DWithin(
           UTM,
-          ST_Transform(GeomFromText(?, ?), ?),
+          ST_Transform(GeomFromText(?, CAST(? AS INTEGER)), CAST(? AS INTEGER)),
           ?
         ) as is_within
       FROM route
@@ -300,5 +357,6 @@ module.exports = {
   getRoute,
   listRoutes,
   updateRouteGeometry,
+  deleteRoute,
   checkPointNearRoute,
 };

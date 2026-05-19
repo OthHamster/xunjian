@@ -6,6 +6,13 @@
 const express = require("express");
 const datarouter = express.Router();
 const checkRole = require("../utils/permission.js");
+const {
+  createUser,
+  deleteUserById,
+  listUsers,
+  updateUserById,
+} = require("../utils/user.js");
+
 
 datarouter.get("/users", checkRole(["admin"]), (req, res) => {
   try {

@@ -1,69 +1,46 @@
 /**
  * 简单的路径管理器（前端使用）
- * - 管理多条路径（每条为坐标数组）
- * - 支持创建新空路径并切换到该路径的编辑索引
- * - 支持向当前编辑路径写入坐标点
- * - 支持读取当前所有路径数据（返回浅拷贝）
+ * - 管理单条路径（坐标数组）
+ * - 支持设置节点指针并在指针后插入坐标
+ * - 支持读取当前路径数据（返回浅拷贝）
  */
 
 class PathManager {
   constructor() {
-    /** @type {Array<Array<[number, number]>>} */
-    this.paths = [];
-    /** @type {number} 当前正在编辑的路径索引，-1 表示未选择 */
+    /** @type {Array<[number, number]>} */
+    this.path = [];
+    /** @type {number} 当前节点指针索引，-1 表示未设置 */
     this.editIndex = -1;
   }
 
   /**
-   * 创建一条新的空路径，并将编辑索引设置为新路径的索引
-   * @returns {number} 新创建路径的索引
+   * 设置当前路径数据（会重置指针）
+   * @param {Array<[number, number]>} path
    */
-  createNewPath() {
-    this.paths.push([]);
-    this.editIndex = this.paths.length - 1;
-    return this.editIndex;
+  setPath(path) {
+    if (!Array.isArray(path)) {
+      throw new Error("path 必须为坐标数组");
+    }
+    this.path = path.map((coord) => [Number(coord[0]), Number(coord[1])]);
+    this.editIndex = -1;
   }
 
   /**
-   * 将一个坐标写入到当前编辑索引对应的路径
-   * 如果未选择编辑索引则抛出错误
-   * @param {[number, number]} coord - 坐标对 [longitude, latitude]
-   * @returns {void}
-   */
-  writeCoordinate(coord) {
-    if (!Array.isArray(coord) || coord.length < 2) {
-      throw new Error("coord 必须为 [lon, lat] 的数组");
-    }
-
-    if (this.editIndex < 0 || this.editIndex >= this.paths.length) {
-      throw new Error(
-        "未选择有效的编辑索引，请先调用 createNewPath() 或 setEditIndex()",
-      );
-    }
-
-    const lon = Number(coord[0]);
-    const lat = Number(coord[1]);
-
-    if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
-      throw new Error("坐标必须是有效的数字");
-    }
-
-    this.paths[this.editIndex].push([lon, lat]);
-  }
-
-  /**
-   * 设置当前编辑索引
+   * 设置当前节点指针索引
    * @param {number} index
    */
   setEditIndex(index) {
-    if (!Number.isInteger(index) || index < 0 || index >= this.paths.length) {
+    if (!Number.isInteger(index) || index < -1) {
+      throw new Error("editIndex 越界");
+    }
+    if (index >= 0 && index >= this.path.length) {
       throw new Error("editIndex 越界");
     }
     this.editIndex = index;
   }
 
   /**
-   * 获取当前编辑索引
+   * 获取当前节点指针索引
    * @returns {number}
    */
   getEditIndex() {
@@ -75,10 +52,7 @@ class PathManager {
    * @returns {Array<[number, number]>}
    */
   getCurrentPath() {
-    if (this.editIndex < 0 || this.editIndex >= this.paths.length) {
-      return [];
-    }
-    return this.paths[this.editIndex].slice();
+    return this.path.slice();
   }
 
   /**
@@ -86,32 +60,51 @@ class PathManager {
    * @param {number} index
    */
   removeCoordinateAt(index) {
-    if (this.editIndex < 0 || this.editIndex >= this.paths.length) {
-      throw new Error("未选择有效的编辑索引");
-    }
     if (!Number.isInteger(index) || index < 0) {
       throw new Error("坐标索引不合法");
     }
-    const path = this.paths[this.editIndex];
-    if (index >= path.length) {
+    if (index >= this.path.length) {
       throw new Error("坐标索引超出范围");
     }
-    path.splice(index, 1);
+    this.path.splice(index, 1);
+    if (this.editIndex >= index) {
+      this.editIndex = Math.max(this.editIndex - 1, -1);
+    }
   }
 
   /**
-   * 获取所有路径数据的浅拷贝（防止外部直接修改内部数组）
-   * @returns {Array<Array<[number, number]>>}
+   * 将坐标插入到当前指针的下一个节点
+   * @param {[number, number]} coord - 坐标对 [longitude, latitude]
    */
-  getPaths() {
-    return this.paths.map((p) => p.slice());
+  insertCoordinateAfterEditIndex(coord) {
+    if (!Array.isArray(coord) || coord.length < 2) {
+      throw new Error("coord 必须为 [lon, lat] 的数组");
+    }
+
+    if (!Number.isInteger(this.editIndex) || this.editIndex < -1) {
+      throw new Error("插入指针不合法");
+    }
+    if (this.editIndex >= this.path.length) {
+      throw new Error("插入指针超出范围");
+    }
+
+    const lon = Number(coord[0]);
+    const lat = Number(coord[1]);
+
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+      throw new Error("坐标必须是有效的数字");
+    }
+
+    const insertIndex = this.editIndex + 1;
+    this.path.splice(insertIndex, 0, [lon, lat]);
+    this.editIndex = insertIndex;
   }
 
   /**
    * 清空所有路径并重置编辑索引
    */
   clear() {
-    this.paths = [];
+    this.path = [];
     this.editIndex = -1;
   }
 }

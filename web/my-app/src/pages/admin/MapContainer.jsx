@@ -6,14 +6,93 @@ import AMapLoader from "@amap/amap-jsapi-loader";
  *
  * @param {{mode?: string}} props
  * @param {string} [props.mode='preview'] - 地图模式，'preview' 只展示，'edit' 为编辑模式（目前仅占位，后续可实现点位拾取）
+ * @param {Array<[number, number]>} [props.currentPath] - 当前路径坐标
  */
 export default function MapContainer({
   mode = "preview",
+  currentPath = [],
   pathManager = null,
   onPick = null,
   onPathsChange = null,
 }) {
   const mapRef = useRef(null);
+
+  const updatePathOverlays = (path) => {
+    const ref = mapRef.current;
+    if (!ref?.map || !ref?.AMap) {
+      return;
+    }
+
+    const { map, AMap, overlays } = ref;
+    const nextPath = Array.isArray(path) ? path : [];
+
+    if (overlays?.markers?.length) {
+      map.remove(overlays.markers);
+    }
+    if (overlays?.polyline) {
+      map.remove(overlays.polyline);
+    }
+    if (overlays?.polygon) {
+      map.remove(overlays.polygon);
+    }
+
+    if (nextPath.length === 0) {
+      ref.overlays = { markers: [], polyline: null, polygon: null };
+      return;
+    }
+
+    const markerColor = mode === "edit" ? "#f2552c" : "#1f78d1";
+    const lineColor = mode === "edit" ? "#f2552c" : "#1f78d1";
+    const fillColor = mode === "edit" ? "#f2552c" : "#1f78d1";
+
+    const markers = nextPath.map(
+      (point, index) =>
+        new AMap.Marker({
+          position: point,
+          anchor: "center",
+          offset: new AMap.Pixel(0, 0),
+          content: `<div style=\"display:flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${markerColor};color:#fff;font-size:11px;font-weight:600;border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.3);\">${
+            index + 1
+          }</div>`,
+          title: `点位 ${index + 1}`,
+        }),
+    );
+
+    const closedPath =
+      nextPath.length >= 2 ? [...nextPath, nextPath[0]] : nextPath;
+
+    const polyline =
+      closedPath.length >= 2
+        ? new AMap.Polyline({
+            path: closedPath,
+            strokeColor: lineColor,
+            strokeOpacity: 0.9,
+            strokeWeight: 4,
+          })
+        : null;
+
+    const polygon =
+      nextPath.length >= 3
+        ? new AMap.Polygon({
+            path: nextPath,
+            strokeColor: lineColor,
+            strokeOpacity: 0.6,
+            strokeWeight: 2,
+            fillColor,
+            fillOpacity: 0.15,
+          })
+        : null;
+
+    map.add(markers);
+    if (polyline) {
+      map.add(polyline);
+    }
+    if (polygon) {
+      map.add(polygon);
+    }
+
+    ref.overlays = { markers, polyline, polygon };
+  };
 
   useEffect(() => {
     window._AMapSecurityConfig = {
@@ -56,28 +135,18 @@ export default function MapContainer({
               // 写入 pathManager（如果外部提供）
               if (
                 pathManager &&
-                typeof pathManager.writeCoordinate === "function"
+                typeof pathManager.insertCoordinateAfterEditIndex === "function"
               ) {
                 try {
-                  pathManager.writeCoordinate([lng, lat]);
-                  console.warn("坐标已写入 pathManager", lng, lat);
+                  pathManager.insertCoordinateAfterEditIndex([lng, lat]);
+                  console.warn("坐标已插入 pathManager", lng, lat);
                 } catch (err) {
-                  // 若未设置 editIndex，则尝试创建一条新路径并重试
-                  if (typeof pathManager.createNewPath === "function") {
-                    try {
-                      pathManager.createNewPath();
-                      pathManager.writeCoordinate([lng, lat]);
-                    } catch (err2) {
-                      console.error("写入路径失败:", err2);
-                    }
-                  } else {
-                    console.error("写入路径失败:", err);
-                  }
+                  console.error("写入路径失败:", err);
                 }
 
                 if (typeof onPathsChange === "function") {
                   try {
-                    onPathsChange(pathManager.getPaths());
+                    onPathsChange(pathManager.getCurrentPath());
                   } catch (err) {
                     console.error("onPathsChange 回调失败:", err);
                   }
@@ -99,10 +168,21 @@ export default function MapContainer({
 
           map.on("click", clickHandler);
           // 保存到 ref 以便清理
-          mapRef.current = { map, clickHandler };
+          mapRef.current = {
+            map,
+            clickHandler,
+            AMap,
+            overlays: { markers: [], polyline: null, polygon: null },
+          };
         } else {
-          mapRef.current = { map };
+          mapRef.current = {
+            map,
+            AMap,
+            overlays: { markers: [], polyline: null, polygon: null },
+          };
         }
+
+        updatePathOverlays(currentPath);
       })
       .catch((e) => {
         console.log(e);
@@ -123,6 +203,10 @@ export default function MapContainer({
       mapRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    updatePathOverlays(currentPath);
+  }, [currentPath, mode]);
 
   return (
     <div

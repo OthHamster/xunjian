@@ -11,6 +11,7 @@ function RouteManagerPage({ apiBaseUrl }) {
   const [newRouteName, setNewRouteName] = useState("");
   const [currentPath, setCurrentPath] = useState([]);
   const [editIndex, setEditIndex] = useState(-1);
+  const [editingRouteId, setEditingRouteId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const pathManagerRef = useRef(new PathManager());
@@ -48,11 +49,12 @@ function RouteManagerPage({ apiBaseUrl }) {
   const beginCreate = () => {
     const manager = pathManagerRef.current;
     manager.clear();
-    manager.createNewPath();
+    manager.setEditIndex(-1);
     setEditIndex(manager.getEditIndex());
     setCurrentPath(manager.getCurrentPath());
     setNewRouteName("");
     setError("");
+    setEditingRouteId(null);
     setIsEditing(true);
   };
 
@@ -62,14 +64,14 @@ function RouteManagerPage({ apiBaseUrl }) {
     setNewRouteName("");
     setCurrentPath([]);
     setEditIndex(-1);
+    setEditingRouteId(null);
   };
 
-  const handlePathsChange = (paths) => {
+  const handlePathsChange = (path) => {
     const manager = pathManagerRef.current;
-    const nextIndex = manager.getEditIndex();
-    setEditIndex(nextIndex);
-    if (nextIndex >= 0 && paths[nextIndex]) {
-      setCurrentPath(paths[nextIndex]);
+    setEditIndex(manager.getEditIndex());
+    if (Array.isArray(path)) {
+      setCurrentPath(path);
     } else {
       setCurrentPath([]);
     }
@@ -79,15 +81,70 @@ function RouteManagerPage({ apiBaseUrl }) {
     try {
       pathManagerRef.current.removeCoordinateAt(index);
       setCurrentPath(pathManagerRef.current.getCurrentPath());
+      setEditIndex(pathManagerRef.current.getEditIndex());
     } catch (err) {
       console.error("remove point error:", err);
       setError("删除坐标失败");
     }
   };
 
+  const setInsertPointer = (index) => {
+    try {
+      pathManagerRef.current.setEditIndex(index);
+      setEditIndex(index);
+    } catch (err) {
+      console.error("set insert pointer error:", err);
+      setError("设置插入点失败");
+    }
+  };
+
+  const clearInsertPointer = () => {
+    try {
+      pathManagerRef.current.setEditIndex(-1);
+      setEditIndex(-1);
+    } catch (err) {
+      console.error("clear insert pointer error:", err);
+      setError("清除插入点失败");
+    }
+  };
+
+  const beginEditRoute = async (routeId) => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch(buildApiUrl(`routes/${routeId}`), {
+        method: "GET",
+        credentials: "include",
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data?.success) {
+        setError(data?.error || "获取路线详情失败");
+        return;
+      }
+
+      const manager = pathManagerRef.current;
+      manager.setPath(
+        Array.isArray(data.wgs84Coordinates) ? data.wgs84Coordinates : [],
+      );
+      manager.setEditIndex(-1);
+      setEditIndex(manager.getEditIndex());
+      setCurrentPath(manager.getCurrentPath());
+      setNewRouteName(data.name || "");
+      setEditingRouteId(routeId);
+      setIsEditing(true);
+    } catch (fetchError) {
+      console.error("get route detail error:", fetchError);
+      setError("网络异常，获取路线详情失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const saveRoute = async () => {
     const routeName = newRouteName.trim();
-    if (!routeName) {
+    if (!editingRouteId && !routeName) {
       setError("路线名称不能为空");
       return;
     }
@@ -101,30 +158,39 @@ function RouteManagerPage({ apiBaseUrl }) {
     setError("");
 
     try {
-      const response = await fetch(buildApiUrl("routes"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const isEditingRoute = Number.isInteger(editingRouteId);
+      const response = await fetch(
+        buildApiUrl(isEditingRoute ? `routes/${editingRouteId}` : "routes"),
+        {
+          method: isEditingRoute ? "PUT" : "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify(
+            isEditingRoute
+              ? { coordinates: currentPath }
+              : { name: routeName, coordinates: currentPath },
+          ),
         },
-        credentials: "include",
-        body: JSON.stringify({
-          name: routeName,
-          coordinates: currentPath,
-        }),
-      });
+      );
 
       const data = await response.json();
 
       if (!response.ok || !data?.success) {
-        setError(data?.error || "新增路线失败");
+        setError(
+          data?.error || (editingRouteId ? "更新路线失败" : "新增路线失败"),
+        );
         return;
       }
 
       cancelCreate();
       await loadRoutes();
     } catch (saveError) {
-      console.error("create route error:", saveError);
-      setError("网络异常，新增路线失败");
+      console.error("save route error:", saveError);
+      setError(
+        editingRouteId ? "网络异常，更新路线失败" : "网络异常，新增路线失败",
+      );
     } finally {
       setSaving(false);
     }
@@ -184,7 +250,9 @@ function RouteManagerPage({ apiBaseUrl }) {
       )}
 
       {isEditing && (
-        <div style={{ border: "1px solid #ddd", padding: 12, marginBottom: 16 }}>
+        <div
+          style={{ border: "1px solid #ddd", padding: 12, marginBottom: 16 }}
+        >
           <div style={{ marginBottom: 12 }}>
             <label htmlFor="routeName">
               路线名称
@@ -195,12 +263,19 @@ function RouteManagerPage({ apiBaseUrl }) {
                 onChange={(event) => setNewRouteName(event.target.value)}
                 style={{ marginLeft: 8 }}
                 placeholder="请输入路线名称"
+                disabled={Number.isInteger(editingRouteId)}
               />
             </label>
+            {Number.isInteger(editingRouteId) && (
+              <span style={{ marginLeft: 8, color: "#666" }}>
+                编辑已存在路线
+              </span>
+            )}
           </div>
 
           <MapContainer
             mode="edit"
+            currentPath={currentPath}
             pathManager={pathManagerRef.current}
             onPathsChange={handlePathsChange}
           />
@@ -238,6 +313,13 @@ function RouteManagerPage({ apiBaseUrl }) {
                       <button type="button" onClick={() => removePoint(index)}>
                         删除
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setInsertPointer(index)}
+                        style={{ marginLeft: 8 }}
+                      >
+                        {editIndex === index ? "已选插入点" : "插入到此后"}
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -249,11 +331,26 @@ function RouteManagerPage({ apiBaseUrl }) {
             <button type="button" onClick={saveRoute} disabled={saving}>
               {saving ? "保存中..." : "保存路线"}
             </button>
-            <button type="button" onClick={cancelCreate} style={{ marginLeft: 8 }}>
+            <button
+              type="button"
+              onClick={cancelCreate}
+              style={{ marginLeft: 8 }}
+            >
               取消
             </button>
             {editIndex >= 0 && (
-              <span style={{ marginLeft: 12 }}>当前编辑路径: {editIndex + 1}</span>
+              <span style={{ marginLeft: 12 }}>
+                当前插入指针: 第 {editIndex + 1} 个节点
+              </span>
+            )}
+            {editIndex >= 0 && (
+              <button
+                type="button"
+                onClick={clearInsertPointer}
+                style={{ marginLeft: 8 }}
+              >
+                清除插入点
+              </button>
             )}
           </div>
         </div>
@@ -302,6 +399,14 @@ function RouteManagerPage({ apiBaseUrl }) {
                     : "-"}
                 </td>
                 <td>
+                  <button
+                    type="button"
+                    onClick={() => beginEditRoute(route.routeId)}
+                    disabled={loading}
+                    style={{ marginRight: 8 }}
+                  >
+                    编辑
+                  </button>
                   <button
                     type="button"
                     onClick={() => deleteRoute(route.routeId)}

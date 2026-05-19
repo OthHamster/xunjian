@@ -18,7 +18,6 @@ const hasTable = (tableName) => {
   return Boolean(row?.ok);
 };
 
-
 /**
  * 设置数据库实例
  * @param {Database} dbInstance - better-sqlite3 数据库实例
@@ -54,7 +53,6 @@ const buildRoutePayload = (coordinates) => {
   if (!hasTable("spatial_ref_sys")) {
     throw new Error("空间元数据未初始化：缺少 spatial_ref_sys");
   }
-
 
   const wgs84Wkt = buildLineString(coordinates);
 
@@ -188,7 +186,11 @@ const listRoutes = () => {
       SELECT 
         RouteID,
         name,
-        ST_Length(UTM) as route_length,
+        CASE
+          WHEN UTM IS NULL THEN NULL
+          WHEN ST_NPoints(UTM) < 2 THEN NULL
+          ELSE ST_Length(UTM) + ST_Distance(ST_StartPoint(UTM), ST_EndPoint(UTM))
+        END as route_length,
         ST_NPoints(WGS84) as point_count,
         CreatedAt
       FROM route

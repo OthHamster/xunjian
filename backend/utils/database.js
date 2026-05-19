@@ -59,17 +59,26 @@ const ensureSpatialMetadata = () => {
 
 /**
  * 尝试加载 SpatiaLite 扩展（按候选路径顺序尝试）
+ * 兼容 Linux x86_64 (Docker) 和 本地 Windows 环境
  *
  * @returns {boolean} 如果成功加载返回 true，否则返回 false
  */
 const loadSpatialiteExtension = () => {
   const extensionCandidates = [
+    // 1. 最高优先级：环境变量指定的路径
     process.env.SPATIALITE_EXTENSION_PATH,
+    
+    // 2. 针对 Linux x86_64 (Docker Debian/Ubuntu) 环境的绝对路径
+    "/usr/lib/x86_64-linux-gnu/mod_spatialite.so",
+    
+    // 3. 针对本地 Windows 开发环境的相对路径
     path.join(__dirname, "../assets/mod_spatialite.dll"),
     path.join(
       __dirname,
       "../node_modules/spatialite/dist/win32/x64/mod_spatialite.dll",
     ),
+    
+    // 4. 最后尝试系统默认 PATH 中的名称
     "mod_spatialite",
   ].filter(Boolean);
 

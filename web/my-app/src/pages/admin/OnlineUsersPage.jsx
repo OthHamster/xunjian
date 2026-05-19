@@ -64,7 +64,7 @@ function OnlineUsersPage({ apiBaseUrl }) {
 
   return (
     <div>
-      <MapContainer></MapContainer>
+      <MapContainer mode="preview" users={users} />
       <h3>在线用户</h3>
       <div style={{ marginBottom: 12 }}>
         <button type="button" onClick={loadOnlineUsers} disabled={loading}>

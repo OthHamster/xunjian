@@ -7,10 +7,12 @@ import AMapLoader from "@amap/amap-jsapi-loader";
  * @param {{mode?: string}} props
  * @param {string} [props.mode='preview'] - 地图模式，'preview' 只展示，'edit' 为编辑模式（目前仅占位，后续可实现点位拾取）
  * @param {Array<[number, number]>} [props.currentPath] - 当前路径坐标
+ * @param {Array<Object>} [props.users] - 在线用户列表
  */
 export default function MapContainer({
   mode = "preview",
   currentPath = [],
+  users = [],
   pathManager = null,
   onPick = null,
   onPathsChange = null,
@@ -94,6 +96,48 @@ export default function MapContainer({
     ref.overlays = { markers, polyline, polygon };
   };
 
+  const updateUserMarkers = (list) => {
+    const ref = mapRef.current;
+    if (!ref?.map || !ref?.AMap) {
+      return;
+    }
+
+    const { map, AMap, userMarkers } = ref;
+    const nextUsers = Array.isArray(list) ? list : [];
+
+    if (userMarkers?.length) {
+      map.remove(userMarkers);
+    }
+
+    const markers = nextUsers
+      .filter((user) => user?.location)
+      .map((user) => {
+        const lng = Number(user.location?.longitude);
+        const lat = Number(user.location?.latitude);
+        if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+          return null;
+        }
+        const label = user.username || user.id || "在线";
+        return new AMap.Marker({
+          position: [lng, lat],
+          anchor: "bottom-center",
+          offset: new AMap.Pixel(0, -6),
+          content:
+            `<div style=\"display:flex;flex-direction:column;align-items:center;gap:4px;\">` +
+            `<div style=\"background:#2f7d32;color:#fff;padding:2px 6px;border-radius:10px;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,0.25);\">${label}</div>` +
+            `<div style=\"width:10px;height:10px;border-radius:50%;background:#2f7d32;border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.3);\"></div>` +
+            `</div>`,
+        });
+      })
+      .filter(Boolean);
+
+    if (markers.length) {
+      map.add(markers);
+    }
+
+    ref.userMarkers = markers;
+  };
+
   useEffect(() => {
     window._AMapSecurityConfig = {
       securityJsCode: "530f19d33f82ac7fedfccc16d919ef3c",
@@ -173,16 +217,19 @@ export default function MapContainer({
             clickHandler,
             AMap,
             overlays: { markers: [], polyline: null, polygon: null },
+            userMarkers: [],
           };
         } else {
           mapRef.current = {
             map,
             AMap,
             overlays: { markers: [], polyline: null, polygon: null },
+            userMarkers: [],
           };
         }
 
         updatePathOverlays(currentPath);
+        updateUserMarkers(users);
       })
       .catch((e) => {
         console.log(e);
@@ -207,6 +254,10 @@ export default function MapContainer({
   useEffect(() => {
     updatePathOverlays(currentPath);
   }, [currentPath, mode]);
+
+  useEffect(() => {
+    updateUserMarkers(users);
+  }, [users]);
 
   return (
     <div

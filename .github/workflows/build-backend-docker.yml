@@ -24,7 +24,7 @@ jobs:
 
       - name: Compute ACR image name
         id: image-acr
-        run: echo "name=${{ secrets.ALIYUN_ACR_REGISTRY }}/xunjian/xunjian-backend" >> "$GITHUB_OUTPUT"
+        run: echo "name=${{ secrets.ALIYUN_ACR_REGISTRY }}/otham/xunjian" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -100,7 +100,7 @@ jobs:
             ACR_REGISTRY="${{ secrets.ALIYUN_ACR_REGISTRY }}"
             ACR_USERNAME="${{ secrets.ALIYUN_ACR_USERNAME }}"
             ACR_PASSWORD="${{ secrets.ALIYUN_ACR_PASSWORD }}"
-            IMAGE_NAME="${ACR_REGISTRY}/xunjian/xunjian-backend:latest"
+            IMAGE_NAME="${ACR_REGISTRY}/otham/xunjian:latest"
 
             echo "Logging in to Alibaba Cloud ACR"
             echo "${ACR_PASSWORD}" | docker login "${ACR_REGISTRY}" -u "${ACR_USERNAME}" --password-stdin

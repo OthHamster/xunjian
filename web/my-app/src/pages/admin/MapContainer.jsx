@@ -1,6 +1,116 @@
 import { useEffect, useRef } from "react";
 import "./MapContainer.css";
 import AMapLoader from "@amap/amap-jsapi-loader";
+
+const EARTH_RADIUS = 6378245.0;
+const EE = 0.00669342162296594323;
+
+const outOfChina = (lat, lng) =>
+  lng < 72.004 || lng > 137.8347 || lat < 0.8293 || lat > 55.8271;
+
+const transformLat = (x, y) => {
+  let ret =
+    -100.0 +
+    2.0 * x +
+    3.0 * y +
+    0.2 * y * y +
+    0.1 * x * y +
+    0.2 * Math.sqrt(Math.abs(x));
+  ret +=
+    ((20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) *
+      2.0) /
+    3.0;
+  ret +=
+    ((20.0 * Math.sin(y * Math.PI) + 40.0 * Math.sin((y / 3.0) * Math.PI)) *
+      2.0) /
+    3.0;
+  ret +=
+    ((160.0 * Math.sin((y / 12.0) * Math.PI) +
+      320 * Math.sin((y * Math.PI) / 30.0)) *
+      2.0) /
+    3.0;
+  return ret;
+};
+
+const transformLng = (x, y) => {
+  let ret =
+    300.0 +
+    x +
+    2.0 * y +
+    0.1 * x * x +
+    0.1 * x * y +
+    0.1 * Math.sqrt(Math.abs(x));
+  ret +=
+    ((20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) *
+      2.0) /
+    3.0;
+  ret +=
+    ((20.0 * Math.sin(x * Math.PI) + 40.0 * Math.sin((x / 3.0) * Math.PI)) *
+      2.0) /
+    3.0;
+  ret +=
+    ((150.0 * Math.sin((x / 12.0) * Math.PI) +
+      300.0 * Math.sin((x / 30.0) * Math.PI)) *
+      2.0) /
+    3.0;
+  return ret;
+};
+
+export const wgs84ToGcj02Point = (point) => {
+  if (!Array.isArray(point) || point.length < 2) {
+    return point;
+  }
+
+  const lng = Number(point[0]);
+  const lat = Number(point[1]);
+
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+    return point;
+  }
+
+  if (outOfChina(lat, lng)) {
+    return [lng, lat];
+  }
+
+  let dLat = transformLat(lng - 105.0, lat - 35.0);
+  let dLng = transformLng(lng - 105.0, lat - 35.0);
+  const radLat = (lat / 180.0) * Math.PI;
+  let magic = Math.sin(radLat);
+  magic = 1 - EE * magic * magic;
+  const sqrtMagic = Math.sqrt(magic);
+  dLat =
+    (dLat * 180.0) /
+    (((EARTH_RADIUS * (1 - EE)) / (magic * sqrtMagic)) * Math.PI);
+  dLng =
+    (dLng * 180.0) / ((EARTH_RADIUS / sqrtMagic) * Math.cos(radLat) * Math.PI);
+  return [lng + dLng, lat + dLat];
+};
+
+export const gcj02ToWgs84Point = (point) => {
+  if (!Array.isArray(point) || point.length < 2) {
+    return point;
+  }
+
+  const lng = Number(point[0]);
+  const lat = Number(point[1]);
+
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+    return point;
+  }
+
+  if (outOfChina(lat, lng)) {
+    return [lng, lat];
+  }
+
+  const [gLng, gLat] = wgs84ToGcj02Point([lng, lat]);
+  return [lng * 2 - gLng, lat * 2 - gLat];
+};
+
+export const wgs84ToGcj02Path = (path) =>
+  Array.isArray(path) ? path.map(wgs84ToGcj02Point) : [];
+
+export const gcj02ToWgs84Path = (path) =>
+  Array.isArray(path) ? path.map(gcj02ToWgs84Point) : [];
 /**
  * 简单的地图容器组件
  *
@@ -26,7 +136,7 @@ export default function MapContainer({
     }
 
     const { map, AMap, overlays } = ref;
-    const nextPath = Array.isArray(path) ? path : [];
+    const nextPath = wgs84ToGcj02Path(Array.isArray(path) ? path : []);
 
     if (overlays?.markers?.length) {
       map.remove(overlays.markers);
@@ -117,9 +227,10 @@ export default function MapContainer({
         if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
           return null;
         }
+        const [gcjLng, gcjLat] = wgs84ToGcj02Point([lng, lat]);
         const label = user.username || user.id || "在线";
         return new AMap.Marker({
-          position: [lng, lat],
+          position: [gcjLng, gcjLat],
           anchor: "bottom-center",
           offset: new AMap.Pixel(0, -6),
           content:
@@ -156,10 +267,6 @@ export default function MapContainer({
         });
         if (mode === "preview") {
           // 预览模式：仅显示示例标记
-          const marker = new AMap.Marker({
-            position: [117.177983, 31.767173], // 位置
-          });
-          map.add(marker);
         }
 
         // 编辑模式：绑定点击事件以拾取坐标并写入 pathManager（如果提供）
@@ -176,14 +283,16 @@ export default function MapContainer({
                 return;
               }
 
+              const [wgsLng, wgsLat] = gcj02ToWgs84Point([lng, lat]);
+
               // 写入 pathManager（如果外部提供）
               if (
                 pathManager &&
                 typeof pathManager.insertCoordinateAfterEditIndex === "function"
               ) {
                 try {
-                  pathManager.insertCoordinateAfterEditIndex([lng, lat]);
-                  console.warn("坐标已插入 pathManager", lng, lat);
+                  pathManager.insertCoordinateAfterEditIndex([wgsLng, wgsLat]);
+                  console.warn("坐标已插入 pathManager", wgsLng, wgsLat);
                 } catch (err) {
                   console.error("写入路径失败:", err);
                 }
@@ -200,7 +309,7 @@ export default function MapContainer({
               // 通用回调：通知父组件已拾取到坐标
               if (typeof onPick === "function") {
                 try {
-                  onPick([lng, lat]);
+                  onPick([wgsLng, wgsLat]);
                 } catch (err) {
                   console.error("onPick 回调失败:", err);
                 }

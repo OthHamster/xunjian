@@ -11,6 +11,7 @@ const path = require("path");
 const fs = require("fs");
 const routeUtils = require("./route");
 const userUtils = require("./user");
+const checkUtils = require("./check");
 
 let db;
 
@@ -67,17 +68,17 @@ const loadSpatialiteExtension = () => {
   const extensionCandidates = [
     // 1. 最高优先级：环境变量指定的路径
     process.env.SPATIALITE_EXTENSION_PATH,
-    
+
     // 2. 针对 Linux x86_64 (Docker Debian/Ubuntu) 环境的绝对路径
     "/usr/lib/x86_64-linux-gnu/mod_spatialite.so",
-    
+
     // 3. 针对本地 Windows 开发环境的相对路径
     path.join(__dirname, "../assets/mod_spatialite.dll"),
     path.join(
       __dirname,
       "../node_modules/spatialite/dist/win32/x64/mod_spatialite.dll",
     ),
-    
+
     // 4. 最后尝试系统默认 PATH 中的名称
     "mod_spatialite",
   ].filter(Boolean);
@@ -161,6 +162,13 @@ const createTables = (spatialReady) => {
       FOREIGN KEY (RouteID) REFERENCES route(RouteID),
       UNIQUE (RouteID, SeqNo)
     )`,
+    `CREATE TABLE IF NOT EXISTS checkin_policy (
+      PolicyID INTEGER PRIMARY KEY AUTOINCREMENT,
+      RouteID INTEGER NOT NULL,
+      LoopCount INTEGER NOT NULL DEFAULT 1,
+      FOREIGN KEY (RouteID) REFERENCES route(RouteID),
+      UNIQUE (RouteID)
+    )`,
     `CREATE TABLE IF NOT EXISTS checkin (
       CheckinID INTEGER PRIMARY KEY AUTOINCREMENT,
       CheckpointID INTEGER NOT NULL,
@@ -239,6 +247,7 @@ const connectDatabase = () => {
 
   routeUtils.setDatabase(db);
   userUtils.setDatabase(db);
+  checkUtils.setDatabase(db);
 
   const spatialReady = ensureSpatialMetadata();
 

@@ -115,19 +115,104 @@ export const gcj02ToWgs84Path = (path) =>
  * 简单的地图容器组件
  *
  * @param {{mode?: string}} props
- * @param {string} [props.mode='preview'] - 地图模式，'preview' 只展示，'edit' 为编辑模式（目前仅占位，后续可实现点位拾取）
+ * @param {string} [props.mode='preview'] - 地图模式，'preview' 只展示，'edit' 为路线编辑，'checkpoint-edit' 为打卡点编辑
  * @param {Array<[number, number]>} [props.currentPath] - 当前路径坐标
+ * @param {Array<[number, number]>} [props.path] - 打卡点关联路径坐标
+ * @param {Array<Array<[number, number]>>} [props.paths] - 多条路线坐标
+ * @param {Array<{ name?: string, longitude: number, latitude: number }>} [props.points] - 打卡点列表
  * @param {Array<Object>} [props.users] - 在线用户列表
+ * @param {(point: [number, number]) => Promise<{ ok: boolean, error?: string }>} [props.onValidatePoint] - 打卡点校验回调
  */
 export default function MapContainer({
   mode = "preview",
   currentPath = [],
+  path = [],
+  paths = [],
+  points = [],
   users = [],
   pathManager = null,
+  pointManager = null,
   onPick = null,
   onPathsChange = null,
+  onPointsChange = null,
+  onValidatePoint = null,
 }) {
   const mapRef = useRef(null);
+  const onPickRef = useRef(onPick);
+  const onPathsChangeRef = useRef(onPathsChange);
+  const onPointsChangeRef = useRef(onPointsChange);
+  const onValidatePointRef = useRef(onValidatePoint);
+  const pathManagerRef = useRef(pathManager);
+  const pointManagerRef = useRef(pointManager);
+  const modeRef = useRef(mode);
+
+  useEffect(() => {
+    onPickRef.current = onPick;
+  }, [onPick]);
+
+  useEffect(() => {
+    onPathsChangeRef.current = onPathsChange;
+  }, [onPathsChange]);
+
+  useEffect(() => {
+    onPointsChangeRef.current = onPointsChange;
+  }, [onPointsChange]);
+
+  useEffect(() => {
+    onValidatePointRef.current = onValidatePoint;
+  }, [onValidatePoint]);
+
+  useEffect(() => {
+    pathManagerRef.current = pathManager;
+  }, [pathManager]);
+
+  useEffect(() => {
+    pointManagerRef.current = pointManager;
+  }, [pointManager]);
+
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+
+  const updateRoutesOverlays = (list) => {
+    const ref = mapRef.current;
+    if (!ref?.map || !ref?.AMap) {
+      return;
+    }
+
+    const { map, AMap, routeOverlays } = ref;
+    const nextPaths = Array.isArray(list) ? list : [];
+
+    if (routeOverlays?.length) {
+      map.remove(routeOverlays);
+    }
+
+    const palette = ["#1976d2", "#00897b", "#8e24aa", "#f9a825", "#6d4c41"];
+    const overlays = [];
+
+    nextPaths.forEach((path, index) => {
+      const gcjPath = wgs84ToGcj02Path(Array.isArray(path) ? path : []);
+      if (gcjPath.length < 2) {
+        return;
+      }
+
+      const closedPath = [...gcjPath, gcjPath[0]];
+      overlays.push(
+        new AMap.Polyline({
+          path: closedPath,
+          strokeColor: palette[index % palette.length],
+          strokeOpacity: 0.75,
+          strokeWeight: 3,
+        }),
+      );
+    });
+
+    if (overlays.length) {
+      map.add(overlays);
+    }
+
+    ref.routeOverlays = overlays;
+  };
 
   const updatePathOverlays = (path) => {
     const ref = mapRef.current;
@@ -183,27 +268,12 @@ export default function MapContainer({
           })
         : null;
 
-    const polygon =
-      nextPath.length >= 3
-        ? new AMap.Polygon({
-            path: nextPath,
-            strokeColor: lineColor,
-            strokeOpacity: 0.6,
-            strokeWeight: 2,
-            fillColor,
-            fillOpacity: 0.15,
-          })
-        : null;
-
     map.add(markers);
     if (polyline) {
       map.add(polyline);
     }
-    if (polygon) {
-      map.add(polygon);
-    }
 
-    ref.overlays = { markers, polyline, polygon };
+    ref.overlays = { markers, polyline, polygon: null };
   };
 
   const updateUserMarkers = (list) => {
@@ -249,6 +319,48 @@ export default function MapContainer({
     ref.userMarkers = markers;
   };
 
+  const updatePointMarkers = (list) => {
+    const ref = mapRef.current;
+    if (!ref?.map || !ref?.AMap) {
+      return;
+    }
+
+    const { map, AMap, pointMarkers } = ref;
+    const nextPoints = Array.isArray(list) ? list : [];
+
+    if (pointMarkers?.length) {
+      map.remove(pointMarkers);
+    }
+
+    const markers = nextPoints
+      .map((point, index) => {
+        const lng = Number(point?.longitude ?? point?.lng ?? point?.lon);
+        const lat = Number(point?.latitude ?? point?.lat);
+        if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+          return null;
+        }
+        const [gcjLng, gcjLat] = wgs84ToGcj02Point([lng, lat]);
+        const label = point?.name || `打卡点 ${index + 1}`;
+        return new AMap.Marker({
+          position: [gcjLng, gcjLat],
+          anchor: "center",
+          offset: new AMap.Pixel(0, 0),
+          content:
+            `<div style=\"display:flex;flex-direction:column;align-items:center;gap:4px;\">` +
+            `<div style=\"background:#d84315;color:#fff;padding:2px 6px;border-radius:10px;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,0.25);\">${label}</div>` +
+            `<div style=\"width:10px;height:10px;border-radius:50%;background:#d84315;border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.3);\"></div>` +
+            `</div>`,
+        });
+      })
+      .filter(Boolean);
+
+    if (markers.length) {
+      map.add(markers);
+    }
+
+    ref.pointMarkers = markers;
+  };
+
   useEffect(() => {
     window._AMapSecurityConfig = {
       securityJsCode: "530f19d33f82ac7fedfccc16d919ef3c",
@@ -270,9 +382,9 @@ export default function MapContainer({
         }
 
         // 编辑模式：绑定点击事件以拾取坐标并写入 pathManager（如果提供）
-        if (mode === "edit") {
+        if (mode === "edit" || mode === "checkpoint-edit") {
           console.error("edit模式");
-          const clickHandler = (e) => {
+          const clickHandler = async (e) => {
             try {
               const lnglat = e?.lnglat;
               const lng = lnglat?.lng ?? (lnglat?.getLng && lnglat.getLng());
@@ -285,31 +397,83 @@ export default function MapContainer({
 
               const [wgsLng, wgsLat] = gcj02ToWgs84Point([lng, lat]);
 
-              // 写入 pathManager（如果外部提供）
-              if (
-                pathManager &&
-                typeof pathManager.insertCoordinateAfterEditIndex === "function"
-              ) {
-                try {
-                  pathManager.insertCoordinateAfterEditIndex([wgsLng, wgsLat]);
-                  console.warn("坐标已插入 pathManager", wgsLng, wgsLat);
-                } catch (err) {
-                  console.error("写入路径失败:", err);
-                }
-
-                if (typeof onPathsChange === "function") {
+              if (modeRef.current === "edit") {
+                // 写入 pathManager（如果外部提供）
+                if (
+                  pathManagerRef.current &&
+                  typeof pathManagerRef.current
+                    .insertCoordinateAfterEditIndex === "function"
+                ) {
                   try {
-                    onPathsChange(pathManager.getCurrentPath());
+                    pathManagerRef.current.insertCoordinateAfterEditIndex([
+                      wgsLng,
+                      wgsLat,
+                    ]);
+                    console.warn("坐标已插入 pathManager", wgsLng, wgsLat);
                   } catch (err) {
-                    console.error("onPathsChange 回调失败:", err);
+                    console.error("写入路径失败:", err);
+                  }
+
+                  if (typeof onPathsChangeRef.current === "function") {
+                    try {
+                      onPathsChangeRef.current(
+                        pathManagerRef.current.getCurrentPath(),
+                      );
+                    } catch (err) {
+                      console.error("onPathsChange 回调失败:", err);
+                    }
+                  }
+                }
+              }
+
+              if (modeRef.current === "checkpoint-edit") {
+                if (
+                  pointManagerRef.current &&
+                  typeof pointManagerRef.current.insertPointAfterEditIndex ===
+                    "function"
+                ) {
+                  if (typeof onValidatePointRef.current === "function") {
+                    try {
+                      const result = await onValidatePointRef.current([
+                        wgsLng,
+                        wgsLat,
+                      ]);
+                      if (!result?.ok) {
+                        console.warn("打卡点校验失败:", result?.error);
+                        return;
+                      }
+                    } catch (validateError) {
+                      console.warn("打卡点校验异常:", validateError);
+                      return;
+                    }
+                  }
+
+                  try {
+                    pointManagerRef.current.insertPointAfterEditIndex({
+                      longitude: wgsLng,
+                      latitude: wgsLat,
+                    });
+                    console.warn("坐标已插入 pointManager", wgsLng, wgsLat);
+                  } catch (err) {
+                    console.error("写入打卡点失败:", err);
+                  }
+
+                  if (typeof onPointsChangeRef.current === "function") {
+                    try {
+                      onPointsChangeRef.current(
+                        pointManagerRef.current.getCurrentPoints(),
+                      );
+                    } catch (err) {
+                      console.error("onPointsChange 回调失败:", err);
+                    }
                   }
                 }
               }
 
               // 通用回调：通知父组件已拾取到坐标
-              if (typeof onPick === "function") {
+              if (typeof onPickRef.current === "function") {
                 try {
-                  onPick([wgsLng, wgsLat]);
+                  onPickRef.current([wgsLng, wgsLat]);
                 } catch (err) {
                   console.error("onPick 回调失败:", err);
                 }
@@ -327,6 +491,8 @@ export default function MapContainer({
             AMap,
             overlays: { markers: [], polyline: null, polygon: null },
             userMarkers: [],
+            routeOverlays: [],
+            pointMarkers: [],
           };
         } else {
           mapRef.current = {
@@ -334,11 +500,16 @@ export default function MapContainer({
             AMap,
             overlays: { markers: [], polyline: null, polygon: null },
             userMarkers: [],
+            routeOverlays: [],
+            pointMarkers: [],
           };
         }
 
-        updatePathOverlays(currentPath);
+        const displayPath = mode === "checkpoint-edit" ? path : currentPath;
+        updatePathOverlays(displayPath);
+        updateRoutesOverlays(paths);
         updateUserMarkers(users);
+        updatePointMarkers(points);
       })
       .catch((e) => {
         console.log(e);
@@ -361,12 +532,21 @@ export default function MapContainer({
   }, []);
 
   useEffect(() => {
-    updatePathOverlays(currentPath);
-  }, [currentPath, mode]);
+    const displayPath = mode === "checkpoint-edit" ? path : currentPath;
+    updatePathOverlays(displayPath);
+  }, [currentPath, path, mode]);
+
+  useEffect(() => {
+    updateRoutesOverlays(paths);
+  }, [paths]);
 
   useEffect(() => {
     updateUserMarkers(users);
   }, [users]);
+
+  useEffect(() => {
+    updatePointMarkers(points);
+  }, [points]);
 
   return (
     <div

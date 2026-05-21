@@ -2,6 +2,8 @@ import { Link, Route, Routes } from "react-router-dom";
 import UserManagerPage from "./UserManagerPage";
 import OnlineUsersPage from "./OnlineUsersPage";
 import RouteManagerPage from "./RouteManagerPage";
+import RealTimeMonitorPage from "./RealTimeMonitorPage";
+import CheckpointManagerPage from "./CheckpointManagerPage";
 
 function AdminPage({ userInfo, role, onLogout, apiBaseUrl }) {
   return (
@@ -25,7 +27,13 @@ function AdminPage({ userInfo, role, onLogout, apiBaseUrl }) {
         <Link to="/admin/online-users">在线用户</Link>
       </div>
       <div>
+        <Link to="/admin/monitor">实时监控</Link>
+      </div>
+      <div>
         <Link to="/admin/routes-manager">路线管理</Link>
+      </div>
+      <div>
+        <Link to="/admin/checkpoints">打卡管理</Link>
       </div>
       <Routes>
         <Route index element={<div>请选择一个管理子页面</div>} />
@@ -39,8 +47,16 @@ function AdminPage({ userInfo, role, onLogout, apiBaseUrl }) {
           element={<OnlineUsersPage apiBaseUrl={apiBaseUrl} />}
         />
         <Route
+          path="monitor"
+          element={<RealTimeMonitorPage apiBaseUrl={apiBaseUrl} />}
+        />
+        <Route
           path="routes-manager"
           element={<RouteManagerPage apiBaseUrl={apiBaseUrl} />}
+        />
+        <Route
+          path="checkpoints"
+          element={<CheckpointManagerPage apiBaseUrl={apiBaseUrl} />}
         />
       </Routes>
     </>

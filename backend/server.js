@@ -59,6 +59,7 @@ const config = require("./utils/config.js");
 const { connectDatabase } = require("./utils/database.js");
 const { datarouter } = require("./routers/user.js");
 const { routeRouter } = require("./routers/route.js");
+const checkRouter = require("./routers/check.js");
 const { initializeUsers } = require("./utils/user.js");
 const {
   bindSocketToSession,
@@ -103,6 +104,7 @@ initializeUsers();
 app.use(router);
 app.use(datarouter);
 app.use(routeRouter);
+app.use(checkRouter);
 app.get("/test", checkRole(["admin", "viewer"]), (req, res) => {
   res.json("aaa");
 });

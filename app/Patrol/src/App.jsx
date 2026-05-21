@@ -147,6 +147,12 @@ function App() {
   const [loginMessage, setLoginMessage] = useState("未登录");
   const [userInfo, setUserInfo] = useState(null);
   const [sessionId, setSessionId] = useState("");
+  const [moveOffset, setMoveOffset] = useState({ east: 0, north: 0 });
+  const moveOffsetRef = useRef(moveOffset);
+
+  useEffect(() => {
+    moveOffsetRef.current = moveOffset;
+  }, [moveOffset]);
 
   const buildApiUrl = (path) => {
     return new URL(path, apiBaseUrl).toString();
@@ -157,6 +163,17 @@ function App() {
       navigator.geolocation.clearWatch(locationWatchIdRef.current);
     }
     locationWatchIdRef.current = null;
+  };
+
+  const moveByMeters = (deltaEast, deltaNorth) => {
+    setMoveOffset((prev) => ({
+      east: prev.east + deltaEast,
+      north: prev.north + deltaNorth,
+    }));
+  };
+
+  const resetMoveOffset = () => {
+    setMoveOffset({ east: 0, north: 0 });
   };
 
   const handleLogout = async () => {
@@ -282,7 +299,27 @@ function App() {
         return;
       }
 
-      socket.emit("heartbeat", { sessionId, location });
+      if (!location) {
+        socket.emit("heartbeat", { sessionId, location });
+        return;
+      }
+
+      const { east, north } = moveOffsetRef.current;
+      const lat = Number(location.latitude);
+      const lng = Number(location.longitude);
+      const radLat = (lat * Math.PI) / 180;
+      const metersPerDeg = 111320;
+      const deltaLat = north / metersPerDeg;
+      const deltaLng = east / (metersPerDeg * Math.cos(radLat || 0.000001));
+
+      socket.emit("heartbeat", {
+        sessionId,
+        location: {
+          ...location,
+          latitude: lat + deltaLat,
+          longitude: lng + deltaLng,
+        },
+      });
     };
 
     if (navigator.geolocation && locationWatchIdRef.current === null) {
@@ -346,6 +383,9 @@ function App() {
               onLogout={handleLogout}
               socketStatus={socketStatus}
               socketRef={socketRef}
+              moveOffset={moveOffset}
+              onMoveBy={moveByMeters}
+              onResetOffset={resetMoveOffset}
             />
           </RequireRole>
         }

@@ -146,4 +146,39 @@ routeRouter.post(
   },
 );
 
+routeRouter.get(
+  "/routes/:id/distance",
+  checkRole(["admin", "viewer", "inspector"]),
+  (req, res) => {
+    const routeId = Number.parseInt(req.params.id, 10);
+    const longitude = Number(req.query.longitude);
+    const latitude = Number(req.query.latitude);
+
+    if (!Number.isInteger(routeId) || routeId <= 0) {
+      return res.status(400).json({ error: "路线ID不合法" });
+    }
+
+    if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) {
+      return res.status(400).json({ error: "经纬度不合法" });
+    }
+
+    try {
+      const result = routeUtils.getPointToRouteDistance(
+        routeId,
+        longitude,
+        latitude,
+      );
+
+      if (!result.success) {
+        return res.status(404).json({ error: result.error });
+      }
+
+      return res.json(result);
+    } catch (error) {
+      console.error("get route distance error:", error);
+      return res.status(500).json({ error: "获取路线距离失败" });
+    }
+  },
+);
+
 module.exports = { routeRouter };

@@ -287,6 +287,74 @@ const deleteRoute = (routeId) => {
 };
 
 /**
+ * 计算点到路线的最短距离
+ * @param {number} routeId - 路线 ID
+ * @param {number} longitude - 点经度
+ * @param {number} latitude - 点纬度
+ * @returns {Object} 距离信息
+ */
+const getPointToRouteDistance = (routeId, longitude, latitude) => {
+  try {
+    const routeStmt = db.prepare(`
+      SELECT AsText(WGS84) as wgs84_wkt
+      FROM route
+      WHERE RouteID = ?
+    `);
+
+    const route = routeStmt.get(routeId);
+    if (!route) {
+      return { success: false, error: "路线不存在" };
+    }
+
+    const routeCoordinates = parseLinestring(route.wgs84_wkt);
+    if (routeCoordinates.length < 2) {
+      return { success: false, error: "路线数据不完整" };
+    }
+
+    const closedCoordinates = routeCoordinates.slice();
+    const first = closedCoordinates[0];
+    const last = closedCoordinates[closedCoordinates.length - 1];
+    if (first[0] !== last[0] || first[1] !== last[1]) {
+      closedCoordinates.push(first);
+    }
+
+    const closedWkt = buildLineString(closedCoordinates);
+
+    const stmt = db.prepare(`
+      SELECT 
+        ST_Distance(
+          ST_Transform(GeomFromText(?, CAST(? AS INTEGER)), CAST(? AS INTEGER)),
+          ST_Transform(GeomFromText(?, CAST(? AS INTEGER)), CAST(? AS INTEGER))
+        ) as distance
+    `);
+
+    const pointWkt = `POINT(${longitude} ${latitude})`;
+    const result = stmt.get(
+      pointWkt,
+      WGS84_SRID,
+      UTM_SRID,
+      closedWkt,
+      WGS84_SRID,
+      UTM_SRID,
+    );
+
+    if (!result) {
+      return { success: false, error: "路线不存在" };
+    }
+
+    return {
+      success: true,
+      routeId,
+      distance: result.distance,
+      utmSrid: UTM_SRID,
+    };
+  } catch (error) {
+    console.error("计算点到路线距离失败:", error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
  * 检查点是否在路线附近（偏离监控）
  * @param {number} routeId - 路线 ID
  * @param {number} longitude - 检查点经度
@@ -360,5 +428,6 @@ module.exports = {
   listRoutes,
   updateRouteGeometry,
   deleteRoute,
+  getPointToRouteDistance,
   checkPointNearRoute,
 };

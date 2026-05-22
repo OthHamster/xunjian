@@ -2,6 +2,12 @@
  * 全局变量和相关操作函数
  *
  */
+const {
+  getActiveTaskByUser,
+  validateCheckpointAndAdvance,
+} = require("./task_storage");
+const { checkPointNearRoute } = require("./route");
+
 const loggedInUsers = [];
 
 /**
@@ -26,6 +32,10 @@ function upsertLoggedInUser(sessionId, user) {
     lastHeartbeatAt: previous ? previous.lastHeartbeatAt : null,
     location: previous ? previous.location : null,
     locationUpdatedAt: previous ? previous.locationUpdatedAt : null,
+    hasActiveTask: previous ? previous.hasActiveTask : false,
+    activeTaskId: previous ? previous.activeTaskId : null,
+    activeRouteId: previous ? previous.activeRouteId : null,
+    activeTaskUpdatedAt: previous ? previous.activeTaskUpdatedAt : null,
   };
 
   if (index >= 0) {
@@ -64,7 +74,125 @@ function bindSocketToSession(sessionId, socketId) {
 
   user.socketId = socketId;
   user.lastHeartbeatAt = Date.now();
+  refreshActiveTaskStatusBySession(sessionId);
   return true;
+}
+
+/**
+ * 绑定 session 后刷新激活任务状态。
+ *
+ * @param {string} sessionId - 会话 ID
+ * @returns {boolean} 成功更新返回 true，否则 false
+ */
+function refreshActiveTaskStatusBySession(sessionId) {
+  const user = loggedInUsers.find((item) => item.sessionId === sessionId);
+  if (!user) {
+    return false;
+  }
+
+  try {
+    const result = getActiveTaskByUser(user.id);
+    if (!result?.success) {
+      return false;
+    }
+
+    const task = result.task;
+    user.hasActiveTask = Boolean(task);
+    user.activeTaskId = task ? task.taskId : null;
+    user.activeRouteId = task ? task.routeId : null;
+    user.activeTaskUpdatedAt = Date.now();
+    return true;
+  } catch (error) {
+    console.error("刷新激活任务状态失败:", error.message);
+    return false;
+  }
+}
+
+/**
+ * 获取激活任务的附加信息（偏离判断/打卡点校验）。
+ *
+ * @param {string} sessionId - 会话 ID
+ * @param {Object} [options]
+ * @param {number} [options.bufferDistance=25] - 路线偏离缓冲距离(米)
+ * @param {number} [options.checkpointDistance=25] - 打卡点判定距离(米)
+ * @returns {Object}
+ */
+function getActiveTaskExtraInfoBySession(sessionId, options = {}) {
+  const user = loggedInUsers.find((item) => item.sessionId === sessionId);
+  if (!user) {
+    return { success: false, error: "session不存在" };
+  }
+
+  if (!user.hasActiveTask || !user.activeTaskId) {
+    return { success: true, hasActiveTask: false };
+  }
+
+  if (!user.activeRouteId) {
+    const refreshed = getActiveTaskByUser(user.id);
+    if (!refreshed?.success || !refreshed.task) {
+      return { success: true, hasActiveTask: false };
+    }
+    user.activeTaskId = refreshed.task.taskId;
+    user.activeRouteId = refreshed.task.routeId;
+    user.hasActiveTask = true;
+    user.activeTaskUpdatedAt = Date.now();
+  }
+
+  const location = user.location;
+  if (
+    !location ||
+    !Number.isFinite(Number(location.longitude)) ||
+    !Number.isFinite(Number(location.latitude))
+  ) {
+    return { success: false, error: "缺少有效的位置信息" };
+  }
+
+  const bufferDistance = Number(options.bufferDistance ?? 25);
+  const checkpointDistance = Number(options.checkpointDistance ?? 25);
+
+  const deviationResult = checkPointNearRoute(
+    user.activeRouteId,
+    Number(location.longitude),
+    Number(location.latitude),
+    Number.isFinite(bufferDistance) ? bufferDistance : 25,
+  );
+
+  if (!deviationResult?.success) {
+    return {
+      success: false,
+      error: deviationResult?.error || "路线偏离判断失败",
+    };
+  }
+
+  const checkpointResult = validateCheckpointAndAdvance(
+    user.activeTaskId,
+    Number(location.longitude),
+    Number(location.latitude),
+    Number.isFinite(checkpointDistance) ? checkpointDistance : 25,
+  );
+
+  if (
+    !checkpointResult?.success &&
+    checkpointResult?.error !== "未到达打卡点"
+  ) {
+    return {
+      success: false,
+      error: checkpointResult?.error || "打卡点校验失败",
+    };
+  }
+
+  return {
+    success: true,
+    hasActiveTask: true,
+    taskId: user.activeTaskId,
+    nextCheckpointId: checkpointResult?.nextCheckpoint?.checkpointId || null,
+    isWithinRoute: deviationResult.isWithin,
+    isDeviated: !deviationResult.isWithin,
+    checkpointReached: checkpointResult?.success === true,
+    checkpointInfo: checkpointResult?.nextCheckpoint || null,
+    distance: checkpointResult?.distance,
+    maxDistance: checkpointResult?.maxDistance,
+  };
 }
 
 /**
@@ -138,6 +266,8 @@ module.exports = {
   upsertLoggedInUser,
   removeLoggedInUser,
   bindSocketToSession,
+  refreshActiveTaskStatusBySession,
+  getActiveTaskExtraInfoBySession,
   touchHeartbeat,
   updateLocationBySession,
   clearSocketBindingBySocketId,

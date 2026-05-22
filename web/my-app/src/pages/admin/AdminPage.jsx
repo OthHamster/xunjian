@@ -4,6 +4,7 @@ import OnlineUsersPage from "./OnlineUsersPage";
 import RouteManagerPage from "./RouteManagerPage";
 import RealTimeMonitorPage from "./RealTimeMonitorPage";
 import CheckpointManagerPage from "./CheckpointManagerPage";
+import TaskAssignPage from "./TaskAssignPage";
 
 function AdminPage({ userInfo, role, onLogout, apiBaseUrl }) {
   return (
@@ -35,6 +36,9 @@ function AdminPage({ userInfo, role, onLogout, apiBaseUrl }) {
       <div>
         <Link to="/admin/checkpoints">打卡管理</Link>
       </div>
+      <div>
+        <Link to="/admin/tasks-assign">任务派发</Link>
+      </div>
       <Routes>
         <Route index element={<div>请选择一个管理子页面</div>} />
         <Route
@@ -57,6 +61,10 @@ function AdminPage({ userInfo, role, onLogout, apiBaseUrl }) {
         <Route
           path="checkpoints"
           element={<CheckpointManagerPage apiBaseUrl={apiBaseUrl} />}
+        />
+        <Route
+          path="tasks-assign"
+          element={<TaskAssignPage apiBaseUrl={apiBaseUrl} />}
         />
       </Routes>
     </>

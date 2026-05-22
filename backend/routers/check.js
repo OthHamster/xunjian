@@ -9,7 +9,15 @@ const {
   addCheckpoints,
   listCheckpoints,
   deleteCheckpoint,
+  assignOngoingTask,
+  listOngoingTasks,
 } = require("../utils/check.js");
+const {
+  getActiveTaskByUser,
+  activateTask,
+  advanceActiveTaskCheckpoint,
+  endTaskById,
+} = require("../utils/task_storage.js");
 checkRouter.post(
   "/routes/:id/checkpoints",
   checkRole(["admin"]),
@@ -78,5 +86,96 @@ checkRouter.delete("/checkpoints/:id", checkRole(["admin"]), (req, res) => {
     return res.status(500).json({ error: "删除打卡点失败" });
   }
 });
+
+checkRouter.post("/tasks/assign", checkRole(["admin"]), (req, res) => {
+  const userId = Number.parseInt(req.body?.userId, 10);
+  const routeId = Number.parseInt(req.body?.routeId, 10);
+
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return res.status(400).json({ error: "用户ID不合法" });
+  }
+
+  if (!Number.isInteger(routeId) || routeId <= 0) {
+    return res.status(400).json({ error: "路线ID不合法" });
+  }
+
+  try {
+    const result = assignOngoingTask(userId, routeId);
+    if (!result.success) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    return res.status(201).json(result);
+  } catch (error) {
+    console.error("assign ongoing task error:", error);
+    return res.status(500).json({ error: "分派任务失败" });
+  }
+});
+
+checkRouter.get(
+  "/tasks/ongoing",
+  checkRole(["admin", "viewer"]),
+  (req, res) => {
+    try {
+      const result = listOngoingTasks();
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      return res.json(result);
+    } catch (error) {
+      console.error("list ongoing tasks error:", error);
+      return res.status(500).json({ error: "获取进行中任务失败" });
+    }
+  },
+);
+
+checkRouter.get(
+  "/tasks/active",
+  checkRole(["admin", "inspector"]),
+  (req, res) => {
+    const userId = Number.parseInt(req.query.userId, 10);
+
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({ error: "用户ID不合法" });
+    }
+
+    try {
+      const result = getActiveTaskByUser(userId);
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      return res.json(result);
+    } catch (error) {
+      console.error("get active task error:", error);
+      return res.status(500).json({ error: "获取激活任务失败" });
+    }
+  },
+);
+
+checkRouter.post(
+  "/tasks/activate",
+  checkRole(["admin", "inspector"]),
+  (req, res) => {
+    const taskId = Number.parseInt(req.body?.taskId, 10);
+
+    if (!Number.isInteger(taskId) || taskId <= 0) {
+      return res.status(400).json({ error: "任务ID不合法" });
+    }
+
+    try {
+      const result = activateTask(taskId);
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      return res.json(result);
+    } catch (error) {
+      console.error("activate task error:", error);
+      return res.status(500).json({ error: "激活任务失败" });
+    }
+  },
+);
 
 module.exports = checkRouter;

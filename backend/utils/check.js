@@ -167,9 +167,70 @@ const deleteCheckpoint = (checkpointId) => {
   }
 };
 
+/**
+ * Create an ongoing task assignment for a user and route.
+ * @param {number} userId
+ * @param {number} routeId
+ * @returns {Object}
+ */
+const assignOngoingTask = (userId, routeId) => {
+  try {
+    assertDatabase();
+
+    if (!Number.isInteger(userId) || userId <= 0) {
+      throw new Error("用户ID不合法");
+    }
+
+    if (!Number.isInteger(routeId) || routeId <= 0) {
+      throw new Error("路线ID不合法");
+    }
+
+    const result = db
+      .prepare("INSERT INTO ongoing_task (UserID, RouteID) VALUES (?, ?)")
+      .run(userId, routeId);
+
+    return { success: true, taskId: result.lastInsertRowid, userId, routeId };
+  } catch (error) {
+    console.error("分派任务失败:", error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * List ongoing tasks.
+ * @returns {Object}
+ */
+const listOngoingTasks = () => {
+  try {
+    assertDatabase();
+
+    const rows = db
+      .prepare(
+        "SELECT TaskID, UserID, RouteID, AssignedAt FROM ongoing_task ORDER BY AssignedAt DESC",
+      )
+      .all();
+
+    return {
+      success: true,
+      count: rows.length,
+      tasks: rows.map((row) => ({
+        taskId: row.TaskID,
+        userId: row.UserID,
+        routeId: row.RouteID,
+        assignedAt: row.AssignedAt,
+      })),
+    };
+  } catch (error) {
+    console.error("查询进行中任务失败:", error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   setDatabase,
   addCheckpoints,
   listCheckpoints,
   deleteCheckpoint,
+  assignOngoingTask,
+  listOngoingTasks,
 };

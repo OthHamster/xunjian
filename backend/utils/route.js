@@ -421,6 +421,79 @@ const checkPointNearRoute = (
   }
 };
 
+/**
+ * 检查两个坐标的距离是否小于给定阈值（米）
+ * @param {number} longitudeA
+ * @param {number} latitudeA
+ * @param {number} longitudeB
+ * @param {number} latitudeB
+ * @param {number} maxDistanceMeters
+ * @returns {Object}
+ */
+const isDistanceWithin = (
+  longitudeA,
+  latitudeA,
+  longitudeB,
+  latitudeB,
+  maxDistanceMeters,
+) => {
+  try {
+    const lonA = Number(longitudeA);
+    const latA = Number(latitudeA);
+    const lonB = Number(longitudeB);
+    const latB = Number(latitudeB);
+    const maxDistance = Number(maxDistanceMeters);
+
+    if (
+      !Number.isFinite(lonA) ||
+      !Number.isFinite(latA) ||
+      !Number.isFinite(lonB) ||
+      !Number.isFinite(latB)
+    ) {
+      throw new Error("坐标不合法");
+    }
+
+    if (!Number.isFinite(maxDistance) || maxDistance < 0) {
+      throw new Error("距离阈值不合法");
+    }
+
+    const stmt = db.prepare(`
+      SELECT
+        ST_Distance(
+          ST_Transform(GeomFromText(?, CAST(? AS INTEGER)), CAST(? AS INTEGER)),
+          ST_Transform(GeomFromText(?, CAST(? AS INTEGER)), CAST(? AS INTEGER))
+        ) as distance
+    `);
+
+    const pointA = `POINT(${lonA} ${latA})`;
+    const pointB = `POINT(${lonB} ${latB})`;
+    const result = stmt.get(
+      pointA,
+      WGS84_SRID,
+      UTM_SRID,
+      pointB,
+      WGS84_SRID,
+      UTM_SRID,
+    );
+
+    const distance = result?.distance;
+    if (!Number.isFinite(distance)) {
+      throw new Error("距离计算失败");
+    }
+
+    return {
+      success: true,
+      distance,
+      isWithin: distance <= maxDistance,
+      maxDistance,
+      utmSrid: UTM_SRID,
+    };
+  } catch (error) {
+    console.error("计算坐标距离失败:", error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   setDatabase,
   addRoute,
@@ -430,4 +503,5 @@ module.exports = {
   deleteRoute,
   getPointToRouteDistance,
   checkPointNearRoute,
+  isDistanceWithin,
 };

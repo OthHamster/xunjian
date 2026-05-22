@@ -66,6 +66,7 @@ const {
   touchHeartbeat,
   updateLocationBySession,
   clearSocketBindingBySocketId,
+  getActiveTaskExtraInfoBySession,
 } = require("./utils/global_variable.js");
 const PORT = config.port;
 
@@ -128,11 +129,20 @@ io.on("connection", (socket) => {
 
     touchHeartbeat(sessionId);
     updateLocationBySession(sessionId, location);
-    socket.emit("heartbeat_ack", {
+
+    const extraInfo = getActiveTaskExtraInfoBySession(sessionId);
+    const ackPayload = {
       success: true,
       sessionId,
       socketId: socket.id,
-    });
+    };
+
+    if (extraInfo?.success && extraInfo.hasActiveTask) {
+      ackPayload.taskId = extraInfo.taskId;
+      ackPayload.nextCheckpointId = extraInfo.nextCheckpointId;
+    }
+
+    socket.emit("heartbeat_ack", ackPayload);
   });
 
   socket.on("text_update", (text) => {

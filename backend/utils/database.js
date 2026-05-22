@@ -12,6 +12,7 @@ const fs = require("fs");
 const routeUtils = require("./route");
 const userUtils = require("./user");
 const checkUtils = require("./check");
+const taskStorage = require("./task_storage");
 
 let db;
 
@@ -182,6 +183,17 @@ const createTables = (spatialReady) => {
       FOREIGN KEY (CheckpointID) REFERENCES checkpoint(CheckpointID),
       FOREIGN KEY (UserID) REFERENCES users(UserID)
     )`,
+    `CREATE TABLE IF NOT EXISTS ongoing_task (
+      TaskID INTEGER PRIMARY KEY AUTOINCREMENT,
+      UserID INTEGER NOT NULL,
+      RouteID INTEGER NOT NULL,
+      IsActive INTEGER NOT NULL DEFAULT 1,
+      CurrentCheckpointID INTEGER,
+      AssignedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (UserID) REFERENCES users(UserID),
+      FOREIGN KEY (RouteID) REFERENCES route(RouteID),
+      FOREIGN KEY (CurrentCheckpointID) REFERENCES checkpoint(CheckpointID)
+    )`,
   ];
 
   tables.forEach((sql) => db.exec(sql));
@@ -248,6 +260,7 @@ const connectDatabase = () => {
   routeUtils.setDatabase(db);
   userUtils.setDatabase(db);
   checkUtils.setDatabase(db);
+  taskStorage.setDatabase(db);
 
   const spatialReady = ensureSpatialMetadata();
 

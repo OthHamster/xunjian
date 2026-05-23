@@ -87,22 +87,44 @@ const getActiveTaskByUser = (userId) => {
 /**
  * 激活指定任务。
  * @param {number} taskId
+ * @param {number} userId
  * @returns {Object}
  */
-const activateTask = (taskId) => {
+const activateTask = (taskId, userId) => {
   try {
     assertDatabase();
     const normalizedTaskId = normalizeId(taskId, "任务ID");
+    const normalizedUserId = normalizeId(userId, "用户ID");
 
-    const result = db
-      .prepare("UPDATE ongoing_task SET IsActive = 1 WHERE TaskID = ?")
-      .run(normalizedTaskId);
+    const taskRow = db
+      .prepare("SELECT TaskID, UserID, RouteID FROM ongoing_task WHERE TaskID = ?")
+      .get(normalizedTaskId);
 
-    if (result.changes === 0) {
+    if (!taskRow) {
       return { success: false, error: "任务不存在" };
     }
 
-    return { success: true, taskId: normalizedTaskId, isActive: true };
+    if (taskRow.UserID !== normalizedUserId) {
+      return { success: false, error: "任务不属于当前用户" };
+    }
+
+    const activateTxn = db.transaction(() => {
+      db.prepare("UPDATE ongoing_task SET IsActive = 0 WHERE UserID = ?").run(
+        normalizedUserId,
+      );
+      db.prepare("UPDATE ongoing_task SET IsActive = 1 WHERE TaskID = ?").run(
+        normalizedTaskId,
+      );
+    });
+
+    activateTxn();
+    return {
+      success: true,
+      taskId: normalizedTaskId,
+      userId: normalizedUserId,
+      routeId: taskRow.RouteID,
+      isActive: true,
+    };
   } catch (error) {
     console.error("激活任务失败:", error.message);
     return { success: false, error: error.message };

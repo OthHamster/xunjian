@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import TaskSelection from "./TaskSelection";
+import TaskExecution from "./TaskExecution";
 
 function getUserRole(user) {
   if (!user) {
@@ -49,6 +50,16 @@ function InspectorPage({
   onResetOffset,
 }) {
   const [stepMeters, setStepMeters] = useState(1);
+  const [activeTask, setActiveTask] = useState(null);
+  const [activeTaskLoading, setActiveTaskLoading] = useState(true);
+  const [activeTaskError, setActiveTaskError] = useState("");
+
+  const buildApiUrl = useMemo(() => {
+    if (!apiBaseUrl) {
+      return null;
+    }
+    return (path) => new URL(path, apiBaseUrl).toString();
+  }, [apiBaseUrl]);
 
   const handleStepChange = (event) => {
     const next = Number(event.target.value);
@@ -60,6 +71,71 @@ function InspectorPage({
       onMoveBy(deltaEast, deltaNorth);
     }
   };
+
+  const loadActiveTask = useCallback(() => {
+    let mounted = true;
+
+    const fetchActiveTask = async () => {
+      const normalizedUserId = Number.parseInt(userInfo?.id, 10);
+      if (!buildApiUrl) {
+        setActiveTaskError("缺少 API 地址");
+        setActiveTaskLoading(false);
+        return;
+      }
+
+      if (!Number.isInteger(normalizedUserId)) {
+        setActiveTaskError("用户ID不合法");
+        setActiveTaskLoading(false);
+        return;
+      }
+
+      setActiveTaskLoading(true);
+      setActiveTaskError("");
+
+      try {
+        const response = await fetch(
+          buildApiUrl(`tasks/active?userId=${normalizedUserId}`),
+          {
+            method: "GET",
+            credentials: "include",
+          },
+        );
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data?.error || "获取激活任务失败");
+        }
+
+        if (mounted) {
+          setActiveTask(data?.task || null);
+        }
+      } catch (fetchError) {
+        if (mounted) {
+          setActiveTaskError(fetchError?.message || "获取激活任务失败");
+          setActiveTask(null);
+        }
+      } finally {
+        if (mounted) {
+          setActiveTaskLoading(false);
+        }
+      }
+    };
+
+    fetchActiveTask();
+
+    return () => {
+      mounted = false;
+    };
+  }, [buildApiUrl, userInfo?.id]);
+
+  useEffect(() => {
+    const cleanup = loadActiveTask();
+    return () => {
+      if (typeof cleanup === "function") {
+        cleanup();
+      }
+    };
+  }, [loadActiveTask]);
 
   return (
     <>
@@ -120,7 +196,20 @@ function InspectorPage({
       </div>
 
       <InspectorTextbar socketRef={socketRef} />
-      <TaskSelection apiBaseUrl={apiBaseUrl} />
+      {activeTaskLoading && <div>激活任务加载中...</div>}
+      {!activeTaskLoading && activeTaskError && (
+        <div style={{ color: "#d33" }}>{activeTaskError}</div>
+      )}
+      {!activeTaskLoading && !activeTaskError && !activeTask && (
+        <TaskSelection
+          apiBaseUrl={apiBaseUrl}
+          userId={userInfo?.id}
+          onActivate={loadActiveTask}
+        />
+      )}
+      {!activeTaskLoading && !activeTaskError && activeTask && (
+        <TaskExecution task={activeTask} />
+      )}
     </>
   );
 }

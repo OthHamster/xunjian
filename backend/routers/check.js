@@ -117,7 +117,12 @@ checkRouter.get(
   checkRole(["admin", "inspector"]),
   (req, res) => {
     try {
-      const result = listOngoingTasks();
+      const userId = Number.parseInt(req.query.userId, 10);
+      const normalizedUserId = Number.isInteger(userId) && userId > 0
+        ? userId
+        : null;
+
+      const result = listOngoingTasks(normalizedUserId);
       if (!result.success) {
         return res.status(400).json({ error: result.error });
       }
@@ -159,13 +164,18 @@ checkRouter.post(
   checkRole(["admin", "inspector"]),
   (req, res) => {
     const taskId = Number.parseInt(req.body?.taskId, 10);
+    const userId = Number.parseInt(req.body?.userId, 10);
 
     if (!Number.isInteger(taskId) || taskId <= 0) {
       return res.status(400).json({ error: "任务ID不合法" });
     }
 
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({ error: "用户ID不合法" });
+    }
+
     try {
-      const result = activateTask(taskId);
+      const result = activateTask(taskId, userId);
       if (!result.success) {
         return res.status(400).json({ error: result.error });
       }

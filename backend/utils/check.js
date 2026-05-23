@@ -186,7 +186,9 @@ const assignOngoingTask = (userId, routeId) => {
     }
 
     const result = db
-      .prepare("INSERT INTO ongoing_task (UserID, RouteID) VALUES (?, ?)")
+      .prepare(
+        "INSERT INTO ongoing_task (UserID, RouteID, IsActive) VALUES (?, ?, 0)",
+      )
       .run(userId, routeId);
 
     return { success: true, taskId: result.lastInsertRowid, userId, routeId };
@@ -200,15 +202,23 @@ const assignOngoingTask = (userId, routeId) => {
  * List ongoing tasks.
  * @returns {Object}
  */
-const listOngoingTasks = () => {
+const listOngoingTasks = (userId) => {
   try {
     assertDatabase();
 
-    const rows = db
-      .prepare(
-        "SELECT TaskID, UserID, RouteID, AssignedAt FROM ongoing_task ORDER BY AssignedAt DESC",
-      )
-      .all();
+    const normalizedUserId = Number.isInteger(userId) ? userId : null;
+
+    const rows = normalizedUserId
+      ? db
+          .prepare(
+            "SELECT TaskID, UserID, RouteID, AssignedAt FROM ongoing_task WHERE UserID = ? ORDER BY AssignedAt DESC",
+          )
+          .all(normalizedUserId)
+      : db
+          .prepare(
+            "SELECT TaskID, UserID, RouteID, AssignedAt FROM ongoing_task ORDER BY AssignedAt DESC",
+          )
+          .all();
 
     return {
       success: true,

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 
-function TaskSelection({ apiBaseUrl }) {
+function TaskSelection({ apiBaseUrl, userId, onActivate }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [tasks, setTasks] = useState([]);
+  const [activatingId, setActivatingId] = useState(null);
 
   const buildApiUrl = useMemo(() => {
     if (!apiBaseUrl) {
@@ -26,10 +27,18 @@ function TaskSelection({ apiBaseUrl }) {
       setError("");
 
       try {
-        const response = await fetch(buildApiUrl("tasks/ongoing"), {
+        const normalizedUserId = Number.parseInt(userId, 10);
+        if (!Number.isInteger(normalizedUserId)) {
+          throw new Error("用户ID不合法");
+        }
+
+        const response = await fetch(
+          buildApiUrl(`tasks/ongoing?userId=${normalizedUserId}`),
+          {
           method: "GET",
           credentials: "include",
-        });
+          },
+        );
 
         const data = await response.json();
         if (!response.ok) {
@@ -56,7 +65,41 @@ function TaskSelection({ apiBaseUrl }) {
     return () => {
       mounted = false;
     };
-  }, [buildApiUrl]);
+  }, [buildApiUrl, userId]);
+
+  const handleActivate = async (taskId) => {
+    if (!buildApiUrl) {
+      setError("缺少 API 地址");
+      return;
+    }
+
+    setActivatingId(taskId);
+    setError("");
+
+    try {
+      const response = await fetch(buildApiUrl("tasks/activate"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ taskId, userId }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || "激活任务失败");
+      }
+
+      if (typeof onActivate === "function") {
+        onActivate(taskId);
+      }
+    } catch (fetchError) {
+      setError(fetchError?.message || "激活任务失败");
+    } finally {
+      setActivatingId(null);
+    }
+  };
 
   return (
     <section style={{ marginTop: 16 }}>
@@ -77,6 +120,7 @@ function TaskSelection({ apiBaseUrl }) {
               <th>用户ID</th>
               <th>路线ID</th>
               <th>分配时间</th>
+              <th>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -86,6 +130,15 @@ function TaskSelection({ apiBaseUrl }) {
                 <td>{task.userId}</td>
                 <td>{task.routeId}</td>
                 <td>{task.assignedAt}</td>
+                <td>
+                  <button
+                    type="button"
+                    onClick={() => handleActivate(task.taskId)}
+                    disabled={activatingId === task.taskId}
+                  >
+                    {activatingId === task.taskId ? "激活中..." : "激活"}
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

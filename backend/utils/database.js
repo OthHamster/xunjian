@@ -187,7 +187,7 @@ const createTables = (spatialReady) => {
       TaskID INTEGER PRIMARY KEY AUTOINCREMENT,
       UserID INTEGER NOT NULL,
       RouteID INTEGER NOT NULL,
-      IsActive INTEGER NOT NULL DEFAULT 1,
+      IsActive INTEGER NOT NULL DEFAULT 0,
       CurrentCheckpointID INTEGER,
       AssignedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (UserID) REFERENCES users(UserID),
@@ -197,6 +197,9 @@ const createTables = (spatialReady) => {
   ];
 
   tables.forEach((sql) => db.exec(sql));
+
+  // Normalize existing data: assigned tasks default to inactive.
+  db.exec("UPDATE ongoing_task SET IsActive = 0 WHERE IsActive != 0");
 
   if (!spatialReady) {
     return;

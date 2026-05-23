@@ -59,6 +59,8 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
@@ -78,6 +80,8 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
           tags: ${{ steps.meta-acr.outputs.tags }}
           labels: ${{ steps.meta-acr.outputs.labels }}
 

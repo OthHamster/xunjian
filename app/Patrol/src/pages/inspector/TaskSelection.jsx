@@ -1,94 +1,98 @@
 import { useEffect, useMemo, useState } from "react";
 
 function TaskSelection({ apiBaseUrl }) {
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState("");
-	const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [tasks, setTasks] = useState([]);
 
-	const buildApiUrl = useMemo(() => {
-		if (!apiBaseUrl) {
-			return null;
-		}
-		return (path) => new URL(path, apiBaseUrl).toString();
-	}, [apiBaseUrl]);
+  const buildApiUrl = useMemo(() => {
+    if (!apiBaseUrl) {
+      return null;
+    }
+    return (path) => new URL(path, apiBaseUrl).toString();
+  }, [apiBaseUrl]);
 
-	useEffect(() => {
-		let mounted = true;
+  useEffect(() => {
+    let mounted = true;
 
-		const loadTasks = async () => {
-			if (!buildApiUrl) {
-				setError("缺少 API 地址");
-				setLoading(false);
-				return;
-			}
+    const loadTasks = async () => {
+      if (!buildApiUrl) {
+        setError("缺少 API 地址");
+        setLoading(false);
+        return;
+      }
 
-			setLoading(true);
-			setError("");
+      setLoading(true);
+      setError("");
 
-			try {
-				const response = await fetch(buildApiUrl("tasks/ongoing"), {
-					method: "GET",
-					credentials: "include",
-				});
+      try {
+        const response = await fetch(buildApiUrl("tasks/ongoing"), {
+          method: "GET",
+          credentials: "include",
+        });
 
-				const data = await response.json();
-				if (!response.ok) {
-					throw new Error(data?.error || "获取进行中任务失败");
-				}
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data?.error || "获取进行中任务失败");
+        }
 
-				if (mounted) {
-					setTasks(Array.isArray(data?.tasks) ? data.tasks : []);
-				}
-			} catch (fetchError) {
-				if (mounted) {
-					setError(fetchError?.message || "获取进行中任务失败");
-					setTasks([]);
-				}
-			} finally {
-				if (mounted) {
-					setLoading(false);
-				}
-			}
-		};
+        if (mounted) {
+          setTasks(Array.isArray(data?.tasks) ? data.tasks : []);
+        }
+      } catch (fetchError) {
+        if (mounted) {
+          setError(fetchError?.message || "获取进行中任务失败");
+          setTasks([]);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
 
-		loadTasks();
+    loadTasks();
 
-		return () => {
-			mounted = false;
-		};
-	}, [buildApiUrl]);
+    return () => {
+      mounted = false;
+    };
+  }, [buildApiUrl]);
 
-	return (
-		<section style={{ marginTop: 16 }}>
-			<h3>进行中任务</h3>
-			{loading && <div>任务加载中...</div>}
-			{!loading && error && <div style={{ color: "#d33" }}>{error}</div>}
-			{!loading && !error && tasks.length === 0 && <div>暂无进行中任务</div>}
+  return (
+    <section style={{ marginTop: 16 }}>
+      <h3>进行中任务</h3>
+      {loading && <div>任务加载中...</div>}
+      {!loading && error && <div style={{ color: "#d33" }}>{error}</div>}
+      {!loading && !error && tasks.length === 0 && <div>暂无进行中任务</div>}
 
-			{!loading && !error && tasks.length > 0 && (
-				<table border="1" cellPadding="6" style={{ borderCollapse: "collapse" }}>
-					<thead>
-						<tr>
-							<th>任务ID</th>
-							<th>用户ID</th>
-							<th>路线ID</th>
-							<th>分配时间</th>
-						</tr>
-					</thead>
-					<tbody>
-						{tasks.map((task) => (
-							<tr key={task.taskId}>
-								<td>{task.taskId}</td>
-								<td>{task.userId}</td>
-								<td>{task.routeId}</td>
-								<td>{task.assignedAt}</td>
-							</tr>
-						))}
-					</tbody>
-				</table>
-			)}
-		</section>
-	);
+      {!loading && !error && tasks.length > 0 && (
+        <table
+          border="1"
+          cellPadding="6"
+          style={{ borderCollapse: "collapse" }}
+        >
+          <thead>
+            <tr>
+              <th>任务ID</th>
+              <th>用户ID</th>
+              <th>路线ID</th>
+              <th>分配时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tasks.map((task) => (
+              <tr key={task.taskId}>
+                <td>{task.taskId}</td>
+                <td>{task.userId}</td>
+                <td>{task.routeId}</td>
+                <td>{task.assignedAt}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
 }
 
 export default TaskSelection;

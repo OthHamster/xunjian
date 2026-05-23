@@ -380,6 +380,7 @@ function App() {
           <RequireRole userInfo={userInfo} allowedRoles={["inspector"]}>
             <InspectorPage
               userInfo={userInfo}
+              apiBaseUrl={apiBaseUrl}
               onLogout={handleLogout}
               socketStatus={socketStatus}
               socketRef={socketRef}

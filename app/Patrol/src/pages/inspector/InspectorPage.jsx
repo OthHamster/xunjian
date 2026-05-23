@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
+import TaskSelection from "./TaskSelection";
 
 function getUserRole(user) {
   if (!user) {
@@ -39,6 +40,7 @@ function InspectorTextbar({ socketRef }) {
 
 function InspectorPage({
   userInfo,
+  apiBaseUrl,
   onLogout,
   socketStatus,
   socketRef,
@@ -118,6 +120,7 @@ function InspectorPage({
       </div>
 
       <InspectorTextbar socketRef={socketRef} />
+      <TaskSelection apiBaseUrl={apiBaseUrl} />
     </>
   );
 }

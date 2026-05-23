@@ -114,7 +114,7 @@ checkRouter.post("/tasks/assign", checkRole(["admin"]), (req, res) => {
 
 checkRouter.get(
   "/tasks/ongoing",
-  checkRole(["admin", "viewer"]),
+  checkRole(["admin", "inspector"]),
   (req, res) => {
     try {
       const result = listOngoingTasks();

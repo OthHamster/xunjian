@@ -48,6 +48,7 @@ function InspectorPage({
   moveOffset,
   onMoveBy,
   onResetOffset,
+  nextCheckpointId,
 }) {
   const [stepMeters, setStepMeters] = useState(1);
   const [activeTask, setActiveTask] = useState(null);
@@ -208,7 +209,11 @@ function InspectorPage({
         />
       )}
       {!activeTaskLoading && !activeTaskError && activeTask && (
-        <TaskExecution task={activeTask} />
+        <TaskExecution
+          task={activeTask}
+          apiBaseUrl={apiBaseUrl}
+          nextCheckpointId={nextCheckpointId}
+        />
       )}
     </>
   );

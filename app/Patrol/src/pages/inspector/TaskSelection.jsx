@@ -73,6 +73,12 @@ function TaskSelection({ apiBaseUrl, userId, onActivate }) {
       return;
     }
 
+    const normalizedUserId = Number.parseInt(userId, 10);
+    if (!Number.isInteger(normalizedUserId)) {
+      setError("用户ID不合法");
+      return;
+    }
+
     setActivatingId(taskId);
     setError("");
 
@@ -83,7 +89,7 @@ function TaskSelection({ apiBaseUrl, userId, onActivate }) {
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify({ taskId, userId }),
+        body: JSON.stringify({ taskId, userId: normalizedUserId }),
       });
 
       const data = await response.json();

@@ -168,6 +168,49 @@ const deleteCheckpoint = (checkpointId) => {
 };
 
 /**
+ * Get a checkpoint by id.
+ * @param {number} checkpointId
+ * @returns {Object}
+ */
+const getCheckpointById = (checkpointId) => {
+  try {
+    assertDatabase();
+
+    if (!Number.isInteger(checkpointId) || checkpointId <= 0) {
+      throw new Error("打卡点ID不合法");
+    }
+
+    const row = db
+      .prepare(
+        "SELECT CheckpointID, RouteID, Name, SeqNo, Longitude, Latitude, Status, CreatedAt, UpdatedAt FROM checkpoint WHERE CheckpointID = ?",
+      )
+      .get(checkpointId);
+
+    if (!row) {
+      return { success: false, error: "打卡点不存在" };
+    }
+
+    return {
+      success: true,
+      checkpoint: {
+        checkpointId: row.CheckpointID,
+        routeId: row.RouteID,
+        name: row.Name,
+        seqNo: row.SeqNo,
+        longitude: row.Longitude,
+        latitude: row.Latitude,
+        status: row.Status,
+        createdAt: row.CreatedAt,
+        updatedAt: row.UpdatedAt,
+      },
+    };
+  } catch (error) {
+    console.error("查询打卡点失败:", error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
  * Create an ongoing task assignment for a user and route.
  * @param {number} userId
  * @param {number} routeId
@@ -240,6 +283,7 @@ module.exports = {
   setDatabase,
   addCheckpoints,
   listCheckpoints,
+  getCheckpointById,
   deleteCheckpoint,
   assignOngoingTask,
   listOngoingTasks,

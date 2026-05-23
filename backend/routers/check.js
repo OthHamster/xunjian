@@ -8,6 +8,7 @@ const checkRole = require("../utils/permission.js");
 const {
   addCheckpoints,
   listCheckpoints,
+  getCheckpointById,
   deleteCheckpoint,
   assignOngoingTask,
   listOngoingTasks,
@@ -86,6 +87,30 @@ checkRouter.delete("/checkpoints/:id", checkRole(["admin"]), (req, res) => {
     return res.status(500).json({ error: "删除打卡点失败" });
   }
 });
+
+checkRouter.get(
+  "/checkpoints/:id",
+  checkRole(["admin", "viewer", "inspector"]),
+  (req, res) => {
+    const checkpointId = Number.parseInt(req.params.id, 10);
+
+    if (!Number.isInteger(checkpointId) || checkpointId <= 0) {
+      return res.status(400).json({ error: "打卡点ID不合法" });
+    }
+
+    try {
+      const result = getCheckpointById(checkpointId);
+      if (!result.success) {
+        return res.status(404).json({ error: result.error });
+      }
+
+      return res.json(result);
+    } catch (error) {
+      console.error("get checkpoint error:", error);
+      return res.status(500).json({ error: "获取打卡点失败" });
+    }
+  },
+);
 
 checkRouter.post("/tasks/assign", checkRole(["admin"]), (req, res) => {
   const userId = Number.parseInt(req.body?.userId, 10);

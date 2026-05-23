@@ -147,6 +147,7 @@ function App() {
   const [loginMessage, setLoginMessage] = useState("未登录");
   const [userInfo, setUserInfo] = useState(null);
   const [sessionId, setSessionId] = useState("");
+  const [nextCheckpointId, setNextCheckpointId] = useState(null);
   const [moveOffset, setMoveOffset] = useState({ east: 0, north: 0 });
   const moveOffsetRef = useRef(moveOffset);
 
@@ -277,6 +278,11 @@ function App() {
       setSocketStatus("disconnected");
     });
 
+    socket.on("heartbeat_ack", (payload = {}) => {
+      const nextId = Number.parseInt(payload?.nextCheckpointId, 10);
+      setNextCheckpointId(Number.isInteger(nextId) ? nextId : null);
+    });
+
     return () => {
       socket.disconnect();
       socketRef.current = null;
@@ -387,6 +393,7 @@ function App() {
               moveOffset={moveOffset}
               onMoveBy={moveByMeters}
               onResetOffset={resetMoveOffset}
+              nextCheckpointId={nextCheckpointId}
             />
           </RequireRole>
         }

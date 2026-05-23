@@ -80,7 +80,11 @@ jobs:
 
     steps:
       - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.2.1 # ✅ 5. 升级版本
+        uses: appleboy/ssh-action@v1.2.1  # ✅ 5. 升级版本
+        env:
+          ALIYUN_ACR_REGISTRY: ${{ secrets.ALIYUN_ACR_REGISTRY }}
+          ALIYUN_ACR_USERNAME: ${{ secrets.ALIYUN_ACR_USERNAME }}
+          ALIYUN_ACR_PASSWORD: ${{ secrets.ALIYUN_ACR_PASSWORD }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
@@ -89,8 +93,7 @@ jobs:
           # ✅ 6. 设置超时
           timeout: 120s
           command_timeout: 5m
-          script_stop: true
-          # ✅ 7. 不在 script 里暴露 secrets，用 env 传入
+          # ✅ 7. 通过 env + envs 安全传递 secrets
           envs: ALIYUN_ACR_REGISTRY,ALIYUN_ACR_USERNAME,ALIYUN_ACR_PASSWORD
           script: |
             set -e

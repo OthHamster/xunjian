@@ -210,7 +210,17 @@ const advanceActiveTaskCheckpoint = (taskId) => {
     const nextIndex = currentIndex + 1;
 
     if (nextIndex >= checkpointIds.length) {
-      return { success: false, error: "已到最后一个打卡点" };
+      const endResult = endTaskById(normalizedTaskId);
+      if (!endResult.success) {
+        return { success: false, error: endResult.error };
+      }
+
+      return {
+        success: true,
+        taskId: normalizedTaskId,
+        completed: true,
+        message: "已完成所有打卡点，任务结束",
+      };
     }
 
     const nextCheckpointId = checkpointIds[nextIndex];
@@ -223,6 +233,7 @@ const advanceActiveTaskCheckpoint = (taskId) => {
       success: true,
       taskId: normalizedTaskId,
       currentCheckpointId: nextCheckpointId,
+      completed: false,
     };
   } catch (error) {
     console.error("更新激活任务失败:", error.message);
@@ -275,7 +286,17 @@ const validateCheckpointAndAdvance = (
 
     const nextCheckpoint = getNextCheckpointForTask(taskRow);
     if (!nextCheckpoint) {
-      return { success: false, error: "没有可用的下一个打卡点" };
+      const endResult = endTaskById(normalizedTaskId);
+      if (!endResult.success) {
+        return { success: false, error: endResult.error };
+      }
+
+      return {
+        success: true,
+        taskId: normalizedTaskId,
+        completed: true,
+        message: "已完成所有打卡点，任务结束",
+      };
     }
 
     const checkResult = isDistanceWithin(
@@ -314,14 +335,18 @@ const validateCheckpointAndAdvance = (
     return {
       success: true,
       taskId: normalizedTaskId,
-      currentCheckpointId: advanceResult.currentCheckpointId,
-      nextCheckpoint: {
-        checkpointId: nextCheckpoint.CheckpointID,
-        name: nextCheckpoint.Name,
-        seqNo: nextCheckpoint.SeqNo,
-        longitude: nextCheckpoint.Longitude,
-        latitude: nextCheckpoint.Latitude,
-      },
+      currentCheckpointId: advanceResult.currentCheckpointId || null,
+      completed: Boolean(advanceResult.completed),
+      message: advanceResult.message,
+      nextCheckpoint: advanceResult.completed
+        ? null
+        : {
+            checkpointId: nextCheckpoint.CheckpointID,
+            name: nextCheckpoint.Name,
+            seqNo: nextCheckpoint.SeqNo,
+            longitude: nextCheckpoint.Longitude,
+            latitude: nextCheckpoint.Latitude,
+          },
       distance: checkResult.distance,
       maxDistance: checkResult.maxDistance,
     };

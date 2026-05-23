@@ -424,11 +424,15 @@ const checkPointNearRoute = (
       // Fallback: approximate distance on WGS84 if ST_DWithin is unavailable.
       const metersPerDegLat = 111320;
       const lat0 = Number(latitude);
-      const metersPerDegLng = metersPerDegLat * Math.cos((lat0 * Math.PI) / 180);
+      const metersPerDegLng =
+        metersPerDegLat * Math.cos((lat0 * Math.PI) / 180);
       const pointX = Number(longitude) * metersPerDegLng;
       const pointY = lat0 * metersPerDegLat;
 
-      const toXY = ([lon, lat]) => [lon * metersPerDegLng, lat * metersPerDegLat];
+      const toXY = ([lon, lat]) => [
+        lon * metersPerDegLng,
+        lat * metersPerDegLat,
+      ];
 
       const distanceToSegment = (px, py, ax, ay, bx, by) => {
         const dx = bx - ax;

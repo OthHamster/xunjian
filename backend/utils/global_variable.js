@@ -181,11 +181,23 @@ function getActiveTaskExtraInfoBySession(sessionId, options = {}) {
     };
   }
 
+  const completed = checkpointResult?.completed === true;
+
+  if (completed) {
+    user.hasActiveTask = false;
+    user.activeTaskId = null;
+    user.activeRouteId = null;
+    user.activeTaskUpdatedAt = Date.now();
+  }
+
   return {
     success: true,
-    hasActiveTask: true,
-    taskId: user.activeTaskId,
-    nextCheckpointId: checkpointResult?.nextCheckpoint?.checkpointId || null,
+    hasActiveTask: !completed,
+    completed,
+    taskId: completed ? null : user.activeTaskId,
+    nextCheckpointId: completed
+      ? null
+      : checkpointResult?.nextCheckpoint?.checkpointId || null,
     isWithinRoute: deviationResult.isWithin,
     isDeviated: !deviationResult.isWithin,
     checkpointReached: checkpointResult?.success === true,

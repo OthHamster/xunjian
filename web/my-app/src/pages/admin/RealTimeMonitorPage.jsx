@@ -9,6 +9,7 @@ function RealTimeMonitorPage({ apiBaseUrl }) {
   const [userCount, setUserCount] = useState(0);
   const [routes, setRoutes] = useState([]);
   const [routePaths, setRoutePaths] = useState([]);
+  const [checkpoints, setCheckpoints] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [loadingRoutes, setLoadingRoutes] = useState(true);
   const [error, setError] = useState("");
@@ -104,12 +105,34 @@ function RealTimeMonitorPage({ apiBaseUrl }) {
         .filter((path) => Array.isArray(path) && path.length > 1);
 
       setRoutePaths(paths);
+
+      const checkpointResponses = await Promise.all(
+        routeList.map((route) =>
+          fetch(buildApiUrl(`routes/${route.routeId}/checkpoints`), {
+            method: "GET",
+            credentials: "include",
+          })
+            .then((response) => response.json())
+            .catch(() => null),
+        ),
+      );
+
+      const points = checkpointResponses
+        .map((item) => (item?.success ? item.checkpoints : []))
+        .flat()
+        .map((point, index) => ({
+          ...point,
+          name: point.name || `打卡点 ${index + 1}`,
+        }));
+
+      setCheckpoints(points);
       setLastRoutesUpdatedAt(Date.now());
     } catch (fetchError) {
       console.error("load routes error:", fetchError);
       setError("网络异常，获取路线列表失败");
       setRoutes([]);
       setRoutePaths([]);
+      setCheckpoints([]);
     } finally {
       setLoadingRoutes(false);
       isFetchingRoutesRef.current = false;
@@ -136,7 +159,12 @@ function RealTimeMonitorPage({ apiBaseUrl }) {
 
   return (
     <div>
-      <MapContainer mode="preview" users={users} paths={routePaths} />
+      <MapContainer
+        mode="preview"
+        users={users}
+        paths={routePaths}
+        points={checkpoints}
+      />
       <h3>实时监控</h3>
       <div style={{ marginBottom: 12 }}>
         <button

@@ -137,9 +137,15 @@ io.on("connection", (socket) => {
       socketId: socket.id,
     };
 
-    if (extraInfo?.success && extraInfo.hasActiveTask) {
-      ackPayload.taskId = extraInfo.taskId;
-      ackPayload.nextCheckpointId = extraInfo.nextCheckpointId;
+    if (extraInfo?.success) {
+      if (extraInfo.completed) {
+        ackPayload.completed = true;
+      }
+
+      if (extraInfo.hasActiveTask) {
+        ackPayload.taskId = extraInfo.taskId;
+        ackPayload.nextCheckpointId = extraInfo.nextCheckpointId;
+      }
     }
 
     socket.emit("heartbeat_ack", ackPayload);

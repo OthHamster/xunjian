@@ -148,6 +148,8 @@ function App() {
   const [userInfo, setUserInfo] = useState(null);
   const [sessionId, setSessionId] = useState("");
   const [nextCheckpointId, setNextCheckpointId] = useState(null);
+  const [activeTaskRefreshToken, setActiveTaskRefreshToken] = useState(0);
+  const [taskCompleteNoticeToken, setTaskCompleteNoticeToken] = useState(0);
   const [moveOffset, setMoveOffset] = useState({ east: 0, north: 0 });
   const moveOffsetRef = useRef(moveOffset);
 
@@ -281,6 +283,12 @@ function App() {
     socket.on("heartbeat_ack", (payload = {}) => {
       const nextId = Number.parseInt(payload?.nextCheckpointId, 10);
       setNextCheckpointId(Number.isInteger(nextId) ? nextId : null);
+
+      if (payload?.completed) {
+        setNextCheckpointId(null);
+        setActiveTaskRefreshToken((prev) => prev + 1);
+        setTaskCompleteNoticeToken((prev) => prev + 1);
+      }
     });
 
     return () => {
@@ -394,6 +402,8 @@ function App() {
               onMoveBy={moveByMeters}
               onResetOffset={resetMoveOffset}
               nextCheckpointId={nextCheckpointId}
+              activeTaskRefreshToken={activeTaskRefreshToken}
+              taskCompleteNoticeToken={taskCompleteNoticeToken}
             />
           </RequireRole>
         }

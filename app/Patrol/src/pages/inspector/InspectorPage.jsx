@@ -49,11 +49,14 @@ function InspectorPage({
   onMoveBy,
   onResetOffset,
   nextCheckpointId,
+  activeTaskRefreshToken,
+  taskCompleteNoticeToken,
 }) {
   const [stepMeters, setStepMeters] = useState(1);
   const [activeTask, setActiveTask] = useState(null);
   const [activeTaskLoading, setActiveTaskLoading] = useState(true);
   const [activeTaskError, setActiveTaskError] = useState("");
+  const [completionNotice, setCompletionNotice] = useState("");
 
   const buildApiUrl = useMemo(() => {
     if (!apiBaseUrl) {
@@ -136,7 +139,22 @@ function InspectorPage({
         cleanup();
       }
     };
-  }, [loadActiveTask]);
+  }, [loadActiveTask, activeTaskRefreshToken]);
+
+  useEffect(() => {
+    if (!taskCompleteNoticeToken) {
+      return undefined;
+    }
+
+    setCompletionNotice("任务已完成，可重新选择任务");
+    const timer = setTimeout(() => {
+      setCompletionNotice("");
+    }, 4000);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [taskCompleteNoticeToken]);
 
   return (
     <>
@@ -197,6 +215,11 @@ function InspectorPage({
       </div>
 
       <InspectorTextbar socketRef={socketRef} />
+      {completionNotice && (
+        <div style={{ color: "#2e7d32", marginTop: 8 }}>
+          {completionNotice}
+        </div>
+      )}
       {activeTaskLoading && <div>激活任务加载中...</div>}
       {!activeTaskLoading && activeTaskError && (
         <div style={{ color: "#d33" }}>{activeTaskError}</div>

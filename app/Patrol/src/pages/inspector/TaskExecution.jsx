@@ -78,14 +78,16 @@ function TaskExecution({ task, apiBaseUrl, nextCheckpointId }) {
       <div style={{ marginTop: 8 }}>
         <strong>下一个打卡点</strong>
       </div>
-      {checkpointError && <div style={{ color: "#d33" }}>{checkpointError}</div>}
-      {checkpoint ? (
+      {checkpointError && (
+        <div style={{ color: "#d33" }}>{checkpointError}</div>
+      )}
+      {checkpoint || task.currentCheckpoint ? (
         <div>
-          <div>名称: {checkpoint.name}</div>
-          <div>序号: {checkpoint.seqNo}</div>
+          <div>名称: {(checkpoint || task.currentCheckpoint).name}</div>
+          <div>序号: {(checkpoint || task.currentCheckpoint).seqNo}</div>
           <div>
-            坐标: {checkpoint.longitude},
-            {checkpoint.latitude}
+            坐标: {(checkpoint || task.currentCheckpoint).longitude},
+            {(checkpoint || task.currentCheckpoint).latitude}
           </div>
         </div>
       ) : (

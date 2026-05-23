@@ -385,36 +385,85 @@ const checkPointNearRoute = (
       return { success: false, error: "路线数据不完整" };
     }
 
-    const stmt = db.prepare(`
-      SELECT 
-        ST_DWithin(
-          UTM,
-          ST_Transform(GeomFromText(?, CAST(? AS INTEGER)), CAST(? AS INTEGER)),
-          ?
-        ) as is_within
-      FROM route
-      WHERE RouteID = ?
-    `);
+    try {
+      const stmt = db.prepare(`
+        SELECT 
+          ST_DWithin(
+            UTM,
+            ST_Transform(GeomFromText(?, CAST(? AS INTEGER)), CAST(? AS INTEGER)),
+            ?
+          ) as is_within
+        FROM route
+        WHERE RouteID = ?
+      `);
 
-    const pointWkt = `POINT(${longitude} ${latitude})`;
-    const result = stmt.get(
-      pointWkt,
-      WGS84_SRID,
-      UTM_SRID,
-      bufferDistance,
-      routeId,
-    );
+      const pointWkt = `POINT(${longitude} ${latitude})`;
+      const result = stmt.get(
+        pointWkt,
+        WGS84_SRID,
+        UTM_SRID,
+        bufferDistance,
+        routeId,
+      );
 
-    if (!result) {
-      return { success: false, error: "路线不存在" };
+      if (!result) {
+        return { success: false, error: "路线不存在" };
+      }
+
+      return {
+        success: true,
+        isWithin: result.is_within === 1,
+        bufferDistance,
+        utmSrid: UTM_SRID,
+      };
+    } catch (error) {
+      if (!String(error.message).includes("ST_DWithin")) {
+        throw error;
+      }
+
+      // Fallback: approximate distance on WGS84 if ST_DWithin is unavailable.
+      const metersPerDegLat = 111320;
+      const lat0 = Number(latitude);
+      const metersPerDegLng = metersPerDegLat * Math.cos((lat0 * Math.PI) / 180);
+      const pointX = Number(longitude) * metersPerDegLng;
+      const pointY = lat0 * metersPerDegLat;
+
+      const toXY = ([lon, lat]) => [lon * metersPerDegLng, lat * metersPerDegLat];
+
+      const distanceToSegment = (px, py, ax, ay, bx, by) => {
+        const dx = bx - ax;
+        const dy = by - ay;
+        if (dx === 0 && dy === 0) {
+          const sx = px - ax;
+          const sy = py - ay;
+          return Math.hypot(sx, sy);
+        }
+
+        const t = ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy);
+        const clamped = Math.max(0, Math.min(1, t));
+        const cx = ax + clamped * dx;
+        const cy = ay + clamped * dy;
+        return Math.hypot(px - cx, py - cy);
+      };
+
+      let minDistance = Number.POSITIVE_INFINITY;
+      for (let i = 0; i < routeCoordinates.length - 1; i += 1) {
+        const [ax, ay] = toXY(routeCoordinates[i]);
+        const [bx, by] = toXY(routeCoordinates[i + 1]);
+        const dist = distanceToSegment(pointX, pointY, ax, ay, bx, by);
+        if (dist < minDistance) {
+          minDistance = dist;
+        }
+      }
+
+      return {
+        success: true,
+        isWithin: minDistance <= bufferDistance,
+        bufferDistance,
+        utmSrid: null,
+        distance: minDistance,
+      };
     }
-
-    return {
-      success: true,
-      isWithin: result.is_within === 1,
-      bufferDistance,
-      utmSrid: UTM_SRID,
-    };
   } catch (error) {
     console.error("检查点位置失败:", error.message);
     return { success: false, error: error.message };

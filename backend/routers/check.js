@@ -118,9 +118,8 @@ checkRouter.get(
   (req, res) => {
     try {
       const userId = Number.parseInt(req.query.userId, 10);
-      const normalizedUserId = Number.isInteger(userId) && userId > 0
-        ? userId
-        : null;
+      const normalizedUserId =
+        Number.isInteger(userId) && userId > 0 ? userId : null;
 
       const result = listOngoingTasks(normalizedUserId);
       if (!result.success) {

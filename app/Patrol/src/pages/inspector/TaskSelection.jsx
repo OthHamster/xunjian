@@ -35,8 +35,8 @@ function TaskSelection({ apiBaseUrl, userId, onActivate }) {
         const response = await fetch(
           buildApiUrl(`tasks/ongoing?userId=${normalizedUserId}`),
           {
-          method: "GET",
-          credentials: "include",
+            method: "GET",
+            credentials: "include",
           },
         );
 

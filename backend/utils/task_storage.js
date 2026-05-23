@@ -97,7 +97,9 @@ const activateTask = (taskId, userId) => {
     const normalizedUserId = normalizeId(userId, "用户ID");
 
     const taskRow = db
-      .prepare("SELECT TaskID, UserID, RouteID FROM ongoing_task WHERE TaskID = ?")
+      .prepare(
+        "SELECT TaskID, UserID, RouteID FROM ongoing_task WHERE TaskID = ?",
+      )
       .get(normalizedTaskId);
 
     if (!taskRow) {

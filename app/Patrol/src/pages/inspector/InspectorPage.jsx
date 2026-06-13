@@ -48,6 +48,7 @@ function InspectorPage({
   moveOffset,
   onMoveBy,
   onResetOffset,
+  currentLocation,
   nextCheckpointId,
   activeTaskRefreshToken,
   taskCompleteNoticeToken,
@@ -216,9 +217,7 @@ function InspectorPage({
 
       <InspectorTextbar socketRef={socketRef} />
       {completionNotice && (
-        <div style={{ color: "#2e7d32", marginTop: 8 }}>
-          {completionNotice}
-        </div>
+        <div style={{ color: "#2e7d32", marginTop: 8 }}>{completionNotice}</div>
       )}
       {activeTaskLoading && <div>激活任务加载中...</div>}
       {!activeTaskLoading && activeTaskError && (
@@ -235,6 +234,7 @@ function InspectorPage({
         <TaskExecution
           task={activeTask}
           apiBaseUrl={apiBaseUrl}
+          currentLocation={currentLocation}
           nextCheckpointId={nextCheckpointId}
         />
       )}

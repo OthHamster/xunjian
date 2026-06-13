@@ -1,8 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
+import ObserverMap from "../../components/ObserverMap";
 
-function TaskExecution({ task, apiBaseUrl, nextCheckpointId }) {
+function TaskExecution({
+  task,
+  apiBaseUrl,
+  nextCheckpointId,
+  currentLocation,
+}) {
   const [checkpoint, setCheckpoint] = useState(null);
   const [checkpointError, setCheckpointError] = useState("");
+  const [routePath, setRoutePath] = useState([]);
+  const [routeError, setRouteError] = useState("");
+  const [routeCheckpoints, setRouteCheckpoints] = useState([]);
 
   const buildApiUrl = useMemo(() => {
     if (!apiBaseUrl) {
@@ -10,6 +19,73 @@ function TaskExecution({ task, apiBaseUrl, nextCheckpointId }) {
     }
     return (path) => new URL(path, apiBaseUrl).toString();
   }, [apiBaseUrl]);
+
+  useEffect(() => {
+    let mounted = true;
+    const routeId = Number.parseInt(task?.routeId, 10);
+
+    if (!buildApiUrl || !Number.isInteger(routeId)) {
+      setRoutePath([]);
+      setRouteCheckpoints([]);
+      setRouteError("");
+      return () => {
+        mounted = false;
+      };
+    }
+
+    const loadRoute = async () => {
+      setRouteError("");
+
+      try {
+        const [routeRes, checkpointRes] = await Promise.all([
+          fetch(buildApiUrl(`routes/${routeId}`), {
+            method: "GET",
+            credentials: "include",
+          }),
+          fetch(buildApiUrl(`routes/${routeId}/checkpoints`), {
+            method: "GET",
+            credentials: "include",
+          }),
+        ]);
+
+        const routeData = await routeRes.json();
+        const checkpointData = await checkpointRes.json();
+
+        if (!routeRes.ok || !routeData?.success) {
+          throw new Error(routeData?.error || "获取路线失败");
+        }
+
+        if (!checkpointRes.ok || !checkpointData?.success) {
+          throw new Error(checkpointData?.error || "获取打卡点失败");
+        }
+
+        if (mounted) {
+          setRoutePath(
+            Array.isArray(routeData?.wgs84Coordinates)
+              ? routeData.wgs84Coordinates
+              : [],
+          );
+          setRouteCheckpoints(
+            Array.isArray(checkpointData?.checkpoints)
+              ? checkpointData.checkpoints
+              : [],
+          );
+        }
+      } catch (error) {
+        if (mounted) {
+          setRouteError(error?.message || "获取路线失败");
+          setRoutePath([]);
+          setRouteCheckpoints([]);
+        }
+      }
+    };
+
+    loadRoute();
+
+    return () => {
+      mounted = false;
+    };
+  }, [buildApiUrl, task?.routeId]);
 
   useEffect(() => {
     let mounted = true;
@@ -72,6 +148,12 @@ function TaskExecution({ task, apiBaseUrl, nextCheckpointId }) {
   return (
     <section style={{ marginTop: 16 }}>
       <h3>任务执行</h3>
+      <ObserverMap
+        currentLocation={currentLocation}
+        path={routePath}
+        points={routeCheckpoints}
+      />
+      {routeError && <div style={{ color: "#d33" }}>{routeError}</div>}
       <div>任务ID: {task.taskId}</div>
       <div>路线ID: {task.routeId}</div>
       <div>分配时间: {task.assignedAt}</div>

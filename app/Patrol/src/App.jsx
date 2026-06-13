@@ -150,6 +150,7 @@ function App() {
   const [nextCheckpointId, setNextCheckpointId] = useState(null);
   const [activeTaskRefreshToken, setActiveTaskRefreshToken] = useState(0);
   const [taskCompleteNoticeToken, setTaskCompleteNoticeToken] = useState(0);
+  const [currentLocation, setCurrentLocation] = useState(null);
   const [moveOffset, setMoveOffset] = useState({ east: 0, north: 0 });
   const moveOffsetRef = useRef(moveOffset);
 
@@ -178,6 +179,40 @@ function App() {
   const resetMoveOffset = () => {
     setMoveOffset({ east: 0, north: 0 });
   };
+
+  const applyOffset = (location, offset) => {
+    if (!location) {
+      return null;
+    }
+
+    const { east, north } = offset || { east: 0, north: 0 };
+    const lat = Number(location.latitude);
+    const lng = Number(location.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return null;
+    }
+
+    const radLat = (lat * Math.PI) / 180;
+    const metersPerDeg = 111320;
+    const deltaLat = north / metersPerDeg;
+    const deltaLng = east / (metersPerDeg * Math.cos(radLat || 0.000001));
+
+    return {
+      ...location,
+      latitude: lat + deltaLat,
+      longitude: lng + deltaLng,
+    };
+  };
+
+  useEffect(() => {
+    const baseLocation = lastLocationRef.current;
+    if (!baseLocation) {
+      return;
+    }
+
+    const adjusted = applyOffset(baseLocation, moveOffset);
+    setCurrentLocation(adjusted);
+  }, [moveOffset]);
 
   const handleLogout = async () => {
     try {
@@ -318,21 +353,15 @@ function App() {
         return;
       }
 
-      const { east, north } = moveOffsetRef.current;
-      const lat = Number(location.latitude);
-      const lng = Number(location.longitude);
-      const radLat = (lat * Math.PI) / 180;
-      const metersPerDeg = 111320;
-      const deltaLat = north / metersPerDeg;
-      const deltaLng = east / (metersPerDeg * Math.cos(radLat || 0.000001));
+      const adjusted = applyOffset(location, moveOffsetRef.current);
+      if (!adjusted) {
+        return;
+      }
 
+      setCurrentLocation(adjusted);
       socket.emit("heartbeat", {
         sessionId,
-        location: {
-          ...location,
-          latitude: lat + deltaLat,
-          longitude: lng + deltaLng,
-        },
+        location: adjusted,
       });
     };
 
@@ -346,6 +375,7 @@ function App() {
           };
 
           lastLocationRef.current = location;
+          setCurrentLocation(applyOffset(location, moveOffsetRef.current));
           // 实时位置变化时立即上报
           sendHeartbeat(location);
         },
@@ -401,6 +431,7 @@ function App() {
               moveOffset={moveOffset}
               onMoveBy={moveByMeters}
               onResetOffset={resetMoveOffset}
+              currentLocation={currentLocation}
               nextCheckpointId={nextCheckpointId}
               activeTaskRefreshToken={activeTaskRefreshToken}
               taskCompleteNoticeToken={taskCompleteNoticeToken}

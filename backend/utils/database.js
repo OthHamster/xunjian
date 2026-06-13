@@ -131,14 +131,13 @@ const createTables = (spatialReady) => {
     `CREATE TABLE IF NOT EXISTS risks (
       RiskID INTEGER PRIMARY KEY AUTOINCREMENT,
       ReporterUserID INTEGER NOT NULL,
-      RouteID INTEGER,
       Address TEXT,
       Longitude REAL NOT NULL,
       Latitude REAL NOT NULL,
-      PhotoURL TEXT,
       Description TEXT NOT NULL,
       RiskLevel TEXT NOT NULL CHECK (RiskLevel IN ('low','medium','high')),
       Status TEXT NOT NULL DEFAULT 'open' CHECK (Status IN ('open','resolved')),
+        RequestClose INTEGER NOT NULL DEFAULT 0,
       ReportedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       ResolvedAt DATETIME,
       RelatedRisk INTEGER,
@@ -146,7 +145,6 @@ const createTables = (spatialReady) => {
       ResolveNote TEXT,
       FOREIGN KEY (ReporterUserID) REFERENCES users(UserID),
       FOREIGN KEY (ResolvedByUserID) REFERENCES users(UserID),
-      FOREIGN KEY (RouteID) REFERENCES route(RouteID),
       FOREIGN KEY (RelatedRisk) REFERENCES risks(RiskID)
     )`,
     `CREATE TABLE IF NOT EXISTS checkpoint (

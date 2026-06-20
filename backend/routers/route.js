@@ -194,7 +194,7 @@ routeRouter.post(
   checkRole(["admin", "inspector", "repair"]),
   upload.any(),
   (req, res) => {
-    const { address, description, riskLevel, longitude, latitude, routeId } =
+    const { address, description, riskLevel, longitude, latitude } =
       req.body || {};
 
     const reporterUserId = req.session?.user?.id;
@@ -213,7 +213,6 @@ routeRouter.post(
         riskLevel,
         longitude,
         latitude,
-        routeId,
         files,
       });
 

@@ -27,7 +27,6 @@ const ALLOWED_RISK_LEVELS = ["low", "medium", "high"];
  * @param {string} payload.riskLevel
  * @param {number} payload.longitude
  * @param {number} payload.latitude
- * @param {number} [payload.routeId]
  * @param {Array<{buffer: Buffer, originalname: string}>} [payload.files] - 图片文件数组
  * @returns {Object}
  */
@@ -36,9 +35,6 @@ const submitRisk = (payload) => {
     assertDatabase();
 
     const reporterUserId = Number.parseInt(payload?.reporterUserId, 10);
-    const routeId = Number.isInteger(payload?.routeId)
-      ? payload.routeId
-      : Number.parseInt(payload?.routeId, 10);
     const address = String(payload?.address || "").trim();
     const description = String(payload?.description || "").trim();
     const riskLevel = String(payload?.riskLevel || "").trim();
@@ -65,7 +61,6 @@ const submitRisk = (payload) => {
     const insertStmt = db.prepare(`
 			INSERT INTO risks (
 				ReporterUserID,
-				RouteID,
 				Address,
 				Longitude,
 				Latitude,
@@ -74,12 +69,11 @@ const submitRisk = (payload) => {
 				RiskLevel,
 				Status,
 				RequestClose
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', 0)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, 'open', 0)
 		`);
 
     const result = insertStmt.run(
       reporterUserId,
-      Number.isInteger(routeId) && routeId > 0 ? routeId : null,
       address || null,
       longitude,
       latitude,
@@ -118,7 +112,6 @@ const submitRisk = (payload) => {
       success: true,
       riskId,
       reporterUserId,
-      routeId: Number.isInteger(routeId) && routeId > 0 ? routeId : null,
       address: address || null,
       description,
       riskLevel,

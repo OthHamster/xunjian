@@ -77,6 +77,10 @@ app.set("trust proxy", 1);
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
+const photoDir = process.pkg
+  ? path.join(path.dirname(process.execPath), "photo")
+  : path.join(__dirname, "photo");
+app.use("/photo", express.static(photoDir));
 app.use(express.urlencoded({ extended: true }));
 
 // 配置会话中间件

@@ -262,6 +262,8 @@ const connectDatabase = () => {
   userUtils.setDatabase(db);
   checkUtils.setDatabase(db);
   taskStorage.setDatabase(db);
+  const riskUtils = require("./risk.js");
+  riskUtils.setDatabase(db);
 
   const spatialReady = ensureSpatialMetadata();
 

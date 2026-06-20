@@ -19,7 +19,7 @@ const routeRouter = express.Router();
 
 routeRouter.get(
   "/routes",
-  checkRole(["admin", "viewer", "inspector"]),
+  checkRole(["admin", "viewer", "inspector", "repair"]),
   (req, res) => {
     try {
       const result = routeUtils.listRoutes();
@@ -37,7 +37,7 @@ routeRouter.get(
 
 routeRouter.get(
   "/routes/:id",
-  checkRole(["admin", "viewer", "inspector"]),
+  checkRole(["admin", "viewer", "inspector", "repair"]),
   (req, res) => {
     const routeId = Number.parseInt(req.params.id, 10);
 
@@ -118,7 +118,7 @@ routeRouter.delete("/routes/:id", checkRole(["admin"]), (req, res) => {
 
 routeRouter.post(
   "/routes/:id/check-location",
-  checkRole(["admin", "inspector"]),
+  checkRole(["admin", "inspector", "repair"]),
   (req, res) => {
     const routeId = Number.parseInt(req.params.id, 10);
     const { longitude, latitude, bufferDistance } = req.body || {};
@@ -156,7 +156,7 @@ routeRouter.post(
 
 routeRouter.get(
   "/routes/:id/distance",
-  checkRole(["admin", "viewer", "inspector"]),
+  checkRole(["admin", "viewer", "inspector", "repair"]),
   (req, res) => {
     const routeId = Number.parseInt(req.params.id, 10);
     const longitude = Number(req.query.longitude);
@@ -189,47 +189,51 @@ routeRouter.get(
   },
 );
 
-routeRouter.post("/risks", checkRole(["admin", "inspector"]), (req, res) => {
-  const {
-    address,
-    description,
-    riskLevel,
-    longitude,
-    latitude,
-    routeId,
-    photoUrl,
-  } = req.body || {};
+routeRouter.post(
+  "/risks",
+  checkRole(["admin", "inspector", "repair"]),
+  upload.any(),
+  (req, res) => {
+    const { address, description, riskLevel, longitude, latitude, routeId } =
+      req.body || {};
 
-  const reporterUserId = req.userId || req.session?.userId;
+    const reporterUserId = req.userId || req.session?.userId;
 
-  try {
-    const result = riskUtils.submitRisk({
-      reporterUserId,
-      address,
-      description,
-      riskLevel,
-      longitude,
-      latitude,
-      routeId,
-      photoUrl,
-    });
+    // 提取上传的文件
+    const files = (req.files || []).map((f) => ({
+      buffer: f.buffer,
+      originalname: f.originalname,
+    }));
 
-    if (!result.success) {
-      return res.status(400).json({ error: result.error });
+    try {
+      const result = riskUtils.submitRisk({
+        reporterUserId,
+        address,
+        description,
+        riskLevel,
+        longitude,
+        latitude,
+        routeId,
+        files,
+      });
+
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      return res.status(201).json(result);
+    } catch (error) {
+      console.error("submit risk error:", error);
+      return res.status(500).json({ error: "提交风险工单失败" });
     }
-
-    return res.status(201).json(result);
-  } catch (error) {
-    console.error("submit risk error:", error);
-    return res.status(500).json({ error: "提交风险工单失败" });
-  }
-});
+  },
+);
 
 // --- 图片上传 ---
 
 routeRouter.post(
   "/risks/:id/photo",
-  checkRole(["admin", "inspector"]),
+  checkRole(["admin", "inspector", "repair"]),
   upload.single("image"),
   (req, res) => {
     const riskId = Number.parseInt(req.params.id, 10);
@@ -269,7 +273,7 @@ routeRouter.post(
 // 获取风险工单图片列表
 routeRouter.get(
   "/risks/:id/photo",
-  checkRole(["admin", "viewer", "inspector"]),
+  checkRole(["admin", "viewer", "inspector", "repair"]),
   (req, res) => {
     const riskId = Number.parseInt(req.params.id, 10);
 

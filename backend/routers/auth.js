@@ -57,12 +57,16 @@ authRouter.get("/me", (req, res) => {
   res.json({ user: req.session.user });
 });
 
-authRouter.get("/online-users", checkRole(["admin", "viewer"]), (req, res) => {
-  res.json({
-    success: true,
-    count: getLoggedInUsers().length,
-    users: getLoggedInUsers(),
-  });
-});
+authRouter.get(
+  "/online-users",
+  checkRole(["admin", "viewer", "repair"]),
+  (req, res) => {
+    res.json({
+      success: true,
+      count: getLoggedInUsers().length,
+      users: getLoggedInUsers(),
+    });
+  },
+);
 
 module.exports = authRouter;

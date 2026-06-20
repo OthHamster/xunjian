@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Camera, CameraResultType } from "@capacitor/camera";
+import PhotoCapture from "../../components/PhotoCapture";
+import RiskSubmit from "../../components/RiskSubmit";
 import TaskSelection from "./TaskSelection";
 import TaskExecution from "./TaskExecution";
 
@@ -59,8 +60,6 @@ function InspectorPage({
   const [activeTaskLoading, setActiveTaskLoading] = useState(true);
   const [activeTaskError, setActiveTaskError] = useState("");
   const [completionNotice, setCompletionNotice] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const [uploadResult, setUploadResult] = useState("");
 
   const buildApiUrl = useMemo(() => {
     if (!apiBaseUrl) {
@@ -77,59 +76,6 @@ function InspectorPage({
   const handleMove = (deltaEast, deltaNorth) => {
     if (typeof onMoveBy === "function") {
       onMoveBy(deltaEast, deltaNorth);
-    }
-  };
-
-  const handleCaptureAndUpload = async () => {
-    setUploadResult("");
-    setUploading(true);
-
-    try {
-      // 调用手机摄像头拍照
-      const photo = await Camera.getPhoto({
-        resultType: CameraResultType.Base64,
-        quality: 80,
-        width: 800,
-      });
-
-      const base64Data = photo.base64String;
-      if (!base64Data) {
-        throw new Error("拍照失败：未获取到照片数据");
-      }
-
-      // base64 → Blob
-      const byteChars = atob(base64Data);
-      const byteNums = new Array(byteChars.length);
-      for (let i = 0; i < byteChars.length; i++) {
-        byteNums[i] = byteChars.charCodeAt(i);
-      }
-      const byteArr = new Uint8Array(byteNums);
-      const blob = new Blob([byteArr], { type: `image/${photo.format || "jpeg"}` });
-
-      // 构造 FormData 上传到 riskId=1
-      const formData = new FormData();
-      formData.append("image", blob, `photo_${Date.now()}.${photo.format || "jpg"}`);
-
-      const resp = await fetch(
-        new URL("/risks/1/photo", apiBaseUrl).toString(),
-        {
-          method: "POST",
-          credentials: "include",
-          body: formData,
-        },
-      );
-
-      const data = await resp.json();
-      if (!resp.ok) {
-        throw new Error(data?.error || "上传失败");
-      }
-
-      setUploadResult(`上传成功：${data.url}`);
-    } catch (err) {
-      console.error("拍照上传失败:", err);
-      setUploadResult(`失败：${err.message}`);
-    } finally {
-      setUploading(false);
     }
   };
 
@@ -273,18 +219,9 @@ function InspectorPage({
 
       <InspectorTextbar socketRef={socketRef} />
 
-      <div style={{ marginTop: 12, padding: 10, border: "1px dashed #999" }}>
-        <div><strong>测试：拍照上传 (RiskID=1)</strong></div>
-        <button
-          type="button"
-          onClick={handleCaptureAndUpload}
-          disabled={uploading}
-          style={{ marginTop: 6 }}
-        >
-          {uploading ? "上传中..." : "拍照并上传"}
-        </button>
-        {uploadResult && <div style={{ marginTop: 4 }}>{uploadResult}</div>}
-      </div>
+      <PhotoCapture riskId={1} apiBaseUrl={apiBaseUrl} label="拍照并上传" />
+
+      <RiskSubmit apiBaseUrl={apiBaseUrl} currentLocation={currentLocation} />
 
       {completionNotice && (
         <div style={{ color: "#2e7d32", marginTop: 8 }}>{completionNotice}</div>

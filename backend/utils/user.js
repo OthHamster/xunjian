@@ -3,7 +3,7 @@
  *
  */
 
-const ALLOWED_ROLES = ["admin", "inspector", "viewer"];
+const ALLOWED_ROLES = ["admin", "inspector", "viewer", "repair"];
 
 let db;
 
@@ -32,6 +32,11 @@ const defaultUsers = [
     username: "viewer",
     password: "viewer123",
     roles: "viewer",
+  },
+  {
+    username: "repair",
+    password: "repair123",
+    roles: "repair",
   },
 ];
 
@@ -132,7 +137,7 @@ function createUser(username, password, roles) {
   }
 
   if (!ALLOWED_ROLES.includes(normalizedRole)) {
-    const error = new Error("角色必须是 admin、inspector 或 viewer");
+    const error = new Error(`角色必须是 ${ALLOWED_ROLES.join("、")}`);
     error.code = "INVALID_ROLE";
     throw error;
   }
@@ -219,7 +224,7 @@ function updateUserById(userId, username, password, roles) {
   }
 
   if (!ALLOWED_ROLES.includes(normalizedRole)) {
-    const error = new Error("角色必须是 admin、inspector 或 viewer");
+    const error = new Error(`角色必须是 ${ALLOWED_ROLES.join("、")}`);
     error.code = "INVALID_ROLE";
     throw error;
   }

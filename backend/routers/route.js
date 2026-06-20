@@ -197,7 +197,7 @@ routeRouter.post(
     const { address, description, riskLevel, longitude, latitude, routeId } =
       req.body || {};
 
-    const reporterUserId = req.userId || req.session?.userId;
+    const reporterUserId = req.session?.user?.id;
 
     // 提取上传的文件
     const files = (req.files || []).map((f) => ({

@@ -85,14 +85,11 @@ function RiskSubmit({ apiBaseUrl, currentLocation, onSuccess, onError }) {
         formData.append("image", photo.blob, photo.name);
       }
 
-      const resp = await fetch(
-        new URL("/risks", apiBaseUrl).toString(),
-        {
-          method: "POST",
-          credentials: "include",
-          body: formData,
-        },
-      );
+      const resp = await fetch(new URL("/risks", apiBaseUrl).toString(), {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
 
       const data = await resp.json();
       if (!resp.ok) {
@@ -120,7 +117,14 @@ function RiskSubmit({ apiBaseUrl, currentLocation, onSuccess, onError }) {
   };
 
   return (
-    <div style={{ marginTop: 12, padding: 10, border: "1px solid #ccc", borderRadius: 6 }}>
+    <div
+      style={{
+        marginTop: 12,
+        padding: 10,
+        border: "1px solid #ccc",
+        borderRadius: 6,
+      }}
+    >
       <h3 style={{ margin: "0 0 10px" }}>提交风险工单</h3>
 
       {/* 描述 */}
@@ -173,7 +177,11 @@ function RiskSubmit({ apiBaseUrl, currentLocation, onSuccess, onError }) {
 
       {/* 拍照区域 */}
       <div style={{ marginBottom: 8 }}>
-        <button type="button" onClick={handleCapture} style={{ marginRight: 8 }}>
+        <button
+          type="button"
+          onClick={handleCapture}
+          style={{ marginRight: 8 }}
+        >
           拍照
         </button>
         <span style={{ fontSize: 13, color: "#888" }}>
@@ -183,13 +191,25 @@ function RiskSubmit({ apiBaseUrl, currentLocation, onSuccess, onError }) {
 
       {/* 照片预览 */}
       {photos.length > 0 && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            flexWrap: "wrap",
+            marginBottom: 10,
+          }}
+        >
           {photos.map((p, i) => (
             <div key={i} style={{ position: "relative" }}>
               <img
                 src={p.preview}
                 alt={`照片${i + 1}`}
-                style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 4 }}
+                style={{
+                  width: 80,
+                  height: 80,
+                  objectFit: "cover",
+                  borderRadius: 4,
+                }}
               />
               <button
                 type="button"

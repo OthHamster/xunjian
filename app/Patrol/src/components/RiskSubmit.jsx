@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Camera, CameraResultType } from "@capacitor/camera";
 
 const RISK_LEVELS = [
@@ -55,6 +55,43 @@ function RiskSubmit({ apiBaseUrl, currentLocation, onSuccess, onError }) {
   const handleRemovePhoto = (index) => {
     setPhotos((prev) => prev.filter((_, i) => i !== index));
   };
+
+  // 附近风险联想
+  const [nearbyRisks, setNearbyRisks] = useState([]);
+
+  useEffect(() => {
+    if (!currentLocation) {
+      setNearbyRisks([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    const check = async () => {
+      try {
+        const params = new URLSearchParams({
+          longitude: String(currentLocation.longitude),
+          latitude: String(currentLocation.latitude),
+          distance: "20",
+        });
+        const resp = await fetch(
+          new URL(`/risks/nearby?${params}`, apiBaseUrl).toString(),
+          { method: "GET", credentials: "include" },
+        );
+        const data = await resp.json();
+
+        if (!cancelled && data?.success) {
+          setNearbyRisks(data.nearby || []);
+        }
+      } catch (err) {
+        if (!cancelled) setNearbyRisks([]);
+      }
+    };
+
+    // 防抖：位置变化后延迟 500ms 再查
+    const timer = setTimeout(check, 500);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [currentLocation, apiBaseUrl]);
 
   const handleSubmit = async () => {
     setMessage("");
@@ -174,6 +211,27 @@ function RiskSubmit({ apiBaseUrl, currentLocation, onSuccess, onError }) {
           ? `${currentLocation.longitude?.toFixed(6)}, ${currentLocation.latitude?.toFixed(6)}`
           : "无"}
       </div>
+
+      {/* 附近风险提示 */}
+      {nearbyRisks.length > 0 && (
+        <div
+          style={{
+            marginBottom: 8,
+            padding: 8,
+            border: "1px solid #ff9800",
+            borderRadius: 4,
+            backgroundColor: "#fff3e0",
+            fontSize: 13,
+          }}
+        >
+          <strong style={{ color: "#e65100" }}>⚠ 附近 {nearbyRisks.length} 个相关风险：</strong>
+          {nearbyRisks.map((r) => (
+            <div key={r.riskId} style={{ marginTop: 2 }}>
+              · <strong>#{r.riskId}</strong> {r.description}（{r.distance}m）
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* 拍照区域 */}
       <div style={{ marginBottom: 8 }}>

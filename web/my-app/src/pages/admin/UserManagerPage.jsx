@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-const ROLE_OPTIONS = ["admin", "inspector", "viewer"];
+const ROLE_OPTIONS = ["admin", "inspector", "viewer", "repair"];
 
 function EmptyUsersHint() {
   return <div>暂无用户，请在表格底部添加用户。</div>;

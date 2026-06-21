@@ -2,6 +2,7 @@ let db;
 
 const path = require("path");
 const picManager = require("./pic_manager.js");
+const { isDistanceWithin } = require("./route.js");
 const {
   readJsonSerialized,
   writeJsonSerialized,
@@ -457,12 +458,69 @@ const updateRiskById = (riskId, updates = {}) => {
   }
 };
 
+/**
+ * 查找指定坐标附近的风险工单（去重联想）
+ * @param {number} longitude
+ * @param {number} latitude
+ * @param {number} [distanceMeters=20]
+ * @returns {{ success: boolean, nearby?: Array<{riskId: number, description: string, distance: number}>, error?: string }}
+ */
+const findNearbyRisks = (longitude, latitude, distanceMeters = 20) => {
+  try {
+    assertDatabase();
+
+    const lon = Number(longitude);
+    const lat = Number(latitude);
+    const dist = Number(distanceMeters);
+
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+      throw new Error("经纬度不合法");
+    }
+
+    if (!Number.isFinite(dist) || dist <= 0) {
+      throw new Error("距离阈值不合法");
+    }
+
+    const rows = db
+      .prepare(
+        `SELECT RiskID, Longitude, Latitude, Description
+         FROM risks`,
+      )
+      .all();
+
+    const nearby = [];
+    for (const row of rows) {
+      const result = isDistanceWithin(
+        lon, lat,
+        row.Longitude, row.Latitude,
+        dist,
+      );
+
+      if (result.success && result.isWithin) {
+        nearby.push({
+          riskId: row.RiskID,
+          description: row.Description,
+          distance: Math.round(result.distance || 0),
+        });
+      }
+    }
+
+    nearby.sort((a, b) => a.distance - b.distance);
+
+    return { success: true, nearby };
+  } catch (error) {
+    console.error("查询附近风险失败:", error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   setDatabase,
   submitRisk,
   listRisks,
   getRiskById,
   updateRiskById,
+  findNearbyRisks,
   createRiskLog,
   appendRiskLog,
 };

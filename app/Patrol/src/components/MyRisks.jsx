@@ -69,11 +69,26 @@ function MyRisks({ apiBaseUrl }) {
     }
   };
 
-  const levelLabel = (lv) => ({ low: "低", medium: "中", high: "高" })[lv] || lv;
+  const levelLabel = (lv) =>
+    ({ low: "低", medium: "中", high: "高" })[lv] || lv;
 
   return (
-    <div style={{ marginTop: 12, padding: 10, border: "1px solid #ccc", borderRadius: 6 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+    <div
+      style={{
+        marginTop: 12,
+        padding: 10,
+        border: "1px solid #ccc",
+        borderRadius: 6,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 8,
+        }}
+      >
         <strong>待处理工单</strong>
         <button type="button" onClick={loadRisks} disabled={loading}>
           {loading ? "刷新中..." : "刷新"}
@@ -82,7 +97,12 @@ function MyRisks({ apiBaseUrl }) {
 
       {error && <div style={{ color: "#d33", marginBottom: 8 }}>{error}</div>}
       {actionMsg && (
-        <div style={{ color: actionMsg.startsWith("失败") ? "#d33" : "#2e7d32", marginBottom: 8 }}>
+        <div
+          style={{
+            color: actionMsg.startsWith("失败") ? "#d33" : "#2e7d32",
+            marginBottom: 8,
+          }}
+        >
           {actionMsg}
         </div>
       )}
@@ -103,7 +123,9 @@ function MyRisks({ apiBaseUrl }) {
         >
           <div style={{ fontSize: 13, marginBottom: 4 }}>
             <strong>#{risk.riskId}</strong>{" "}
-            <span style={{ color: "#d32f2f" }}>[{levelLabel(risk.riskLevel)}]</span>{" "}
+            <span style={{ color: "#d32f2f" }}>
+              [{levelLabel(risk.riskLevel)}]
+            </span>{" "}
             {risk.requestClose ? (
               <span style={{ color: "#e65100" }}>等待审核</span>
             ) : (

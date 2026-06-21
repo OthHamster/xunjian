@@ -39,6 +39,36 @@ riskRouter.get(
   },
 );
 
+// 查询附近风险（去重联想）
+riskRouter.get(
+  "/risks/nearby",
+  checkRole(["admin", "inspector", "repair"]),
+  (req, res) => {
+    const { longitude, latitude, distance } = req.query;
+
+    if (!longitude || !latitude) {
+      return res.status(400).json({ error: "请提供经纬度" });
+    }
+
+    try {
+      const result = riskUtils.findNearbyRisks(
+        Number(longitude),
+        Number(latitude),
+        Number(distance) || 20,
+      );
+
+      if (!result.success) {
+        return res.status(500).json({ error: result.error });
+      }
+
+      return res.json(result);
+    } catch (error) {
+      console.error("nearby risks error:", error);
+      return res.status(500).json({ error: "查询附近风险失败" });
+    }
+  },
+);
+
 // 获取单个风险工单详情
 riskRouter.get(
   "/risks/:id",

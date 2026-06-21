@@ -198,7 +198,7 @@ riskRouter.post(
         success: true,
         riskId,
         filename: result.filename,
-        url: `/${result.relativePath.replace(/\\/g, "/")}`,
+        url: result.relativePath.replace(/\\/g, "/"),
       });
     } catch (error) {
       console.error("upload photo error:", error);

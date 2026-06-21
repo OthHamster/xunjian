@@ -2,7 +2,10 @@ let db;
 
 const path = require("path");
 const picManager = require("./pic_manager.js");
-const { readJsonSerialized, writeJsonSerialized } = require("./json_manager.js");
+const {
+  readJsonSerialized,
+  writeJsonSerialized,
+} = require("./json_manager.js");
 
 // 工单记录存储目录：pkg 模式下在 exe 同级，开发模式下在 backend/risk
 const runtimeBaseDir = process.pkg
@@ -194,11 +197,16 @@ const listRisks = (filters = {}) => {
 
     const rows = db.prepare(sql).all(...params);
 
+    // 收集 reporterUserId 并解析用户名
+    const userIds = rows.map((r) => r.ReporterUserID).filter(Boolean);
+    const nameMap = resolveUsernames(userIds);
+
     return {
       success: true,
       risks: rows.map((row) => ({
         riskId: row.RiskID,
         reporterUserId: row.ReporterUserID,
+        reporterUserName: nameMap[row.ReporterUserID] || String(row.ReporterUserID),
         address: row.Address,
         longitude: row.Longitude,
         latitude: row.Latitude,
@@ -286,6 +294,29 @@ const appendRiskLog = (riskId, record) => {
 };
 
 /**
+ * 批量解析用户ID → 用户名
+ * @param {number[]} userIds
+ * @returns {Record<number, string>}
+ */
+const resolveUsernames = (userIds) => {
+  const ids = [...new Set(userIds.filter((id) => Number.isFinite(id) && id > 0))];
+  if (ids.length === 0) {
+    return {};
+  }
+
+  const placeholders = ids.map(() => "?").join(",");
+  const rows = db
+    .prepare(`SELECT UserID, Name FROM users WHERE UserID IN (${placeholders})`)
+    .all(...ids);
+
+  const map = {};
+  for (const row of rows) {
+    map[row.UserID] = row.Name;
+  }
+  return map;
+};
+
+/**
  * 获取单个风险详情（含工单记录）
  * @param {number} riskId
  * @returns {{ success: boolean, risk?: Object, error?: string }}
@@ -320,13 +351,24 @@ const getRiskById = (riskId) => {
     }
 
     // 读取工单记录
-    const logs = readJsonSerialized(getLogPath(riskId), []);
+    const rawLogs = readJsonSerialized(getLogPath(riskId), []);
+    const logs = Array.isArray(rawLogs) ? rawLogs : [];
+
+    // 收集所有需要解析的用户ID
+    const userIds = [row.ReporterUserID, row.ResolvedByUserID];
+    for (const log of logs) {
+      if (Number.isFinite(log.userId) && log.userId > 0) {
+        userIds.push(log.userId);
+      }
+    }
+    const nameMap = resolveUsernames(userIds);
 
     return {
       success: true,
       risk: {
         riskId: row.RiskID,
         reporterUserId: row.ReporterUserID,
+        reporterUserName: nameMap[row.ReporterUserID] || String(row.ReporterUserID),
         address: row.Address,
         longitude: row.Longitude,
         latitude: row.Latitude,
@@ -338,8 +380,12 @@ const getRiskById = (riskId) => {
         reportedAt: row.ReportedAt,
         resolvedAt: row.ResolvedAt,
         resolvedByUserId: row.ResolvedByUserID,
+        resolvedByUserName: nameMap[row.ResolvedByUserID] || null,
         resolveNote: row.ResolveNote,
-        logs: Array.isArray(logs) ? logs : [],
+        logs: logs.map((log) => ({
+          ...log,
+          username: nameMap[log.userId] || String(log.userId || ""),
+        })),
       },
     };
   } catch (error) {

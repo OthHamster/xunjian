@@ -90,6 +90,7 @@ function RiskManagerPage({ apiBaseUrl }) {
               <th>等级</th>
               <th>状态</th>
               <th>描述</th>
+              <th>上报人</th>
               <th>地址</th>
               <th>坐标</th>
               <th>图片</th>
@@ -118,6 +119,7 @@ function RiskManagerPage({ apiBaseUrl }) {
                 <td style={{ maxWidth: 200, wordBreak: "break-word" }}>
                   {risk.description}
                 </td>
+                <td>{risk.reporterUserName || risk.reporterUserId || "-"}</td>
                 <td>{risk.address || "-"}</td>
                 <td>
                   {risk.longitude?.toFixed(6)}, {risk.latitude?.toFixed(6)}

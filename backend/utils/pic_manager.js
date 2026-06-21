@@ -63,7 +63,7 @@ const saveImage = (riskId, fileBuffer, originalName) => {
       success: true,
       filename,
       filePath,
-      relativePath: path.join("photo", String(riskId), filename),
+      relativePath: `/photo/${String(riskId)}/${filename}`,
     };
   } catch (error) {
     console.error("保存图片失败:", error.message);

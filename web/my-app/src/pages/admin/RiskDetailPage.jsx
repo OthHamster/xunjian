@@ -158,7 +158,12 @@ function RiskDetailPage({ apiBaseUrl }) {
           {RISK_LEVEL_LABELS[risk.riskLevel] || risk.riskLevel}
           <span style={{ marginLeft: 16 }}>
             <strong>状态：</strong>
-            <span style={{ color: risk.status === "open" ? "#d32f2f" : "#2e7d32", fontWeight: "bold" }}>
+            <span
+              style={{
+                color: risk.status === "open" ? "#d32f2f" : "#2e7d32",
+                fontWeight: "bold",
+              }}
+            >
               {risk.status === "open" ? "待处理" : "已解决"}
             </span>
           </span>
@@ -198,7 +203,7 @@ function RiskDetailPage({ apiBaseUrl }) {
             }}
           >
             <div style={{ fontSize: 12, color: "#888", marginBottom: 4 }}>
-              #{index + 1} · 用户 {log.userId || "-"} ·{" "}
+              #{index + 1} · {log.username || log.userId || "-"} ·{" "}
               {log.submittedAt
                 ? new Date(log.submittedAt).toLocaleString()
                 : "-"}
@@ -209,7 +214,13 @@ function RiskDetailPage({ apiBaseUrl }) {
                 {log.photoUrl.split(",").map((url, i) => (
                   <img
                     key={i}
-                    src={url.startsWith("/") ? `${apiBaseUrl}${url}` : url}
+                    src={
+                      url.startsWith("http://") || url.startsWith("https://")
+                        ? url
+                        : url.startsWith("/")
+                          ? `${apiBaseUrl}${url}`
+                          : `${apiBaseUrl}/${url}`
+                    }
                     alt={`记录图片${i + 1}`}
                     style={{
                       width: 120,
@@ -248,7 +259,11 @@ function RiskDetailPage({ apiBaseUrl }) {
         <div style={{ marginBottom: 8 }}>
           <label
             htmlFor="update-photo-input"
-            style={{ cursor: "pointer", color: "#1976d2", textDecoration: "underline" }}
+            style={{
+              cursor: "pointer",
+              color: "#1976d2",
+              textDecoration: "underline",
+            }}
           >
             添加图片
           </label>
@@ -266,13 +281,25 @@ function RiskDetailPage({ apiBaseUrl }) {
         </div>
 
         {updatePhotos.length > 0 && (
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              marginBottom: 10,
+            }}
+          >
             {updatePhotos.map((p, i) => (
               <div key={i} style={{ position: "relative" }}>
                 <img
                   src={p.preview}
                   alt={`预览${i + 1}`}
-                  style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 4 }}
+                  style={{
+                    width: 80,
+                    height: 80,
+                    objectFit: "cover",
+                    borderRadius: 4,
+                  }}
                 />
                 <button
                   type="button"
@@ -298,7 +325,11 @@ function RiskDetailPage({ apiBaseUrl }) {
           </div>
         )}
 
-        <button type="button" onClick={handleSubmitUpdate} disabled={submitting}>
+        <button
+          type="button"
+          onClick={handleSubmitUpdate}
+          disabled={submitting}
+        >
           {submitting ? "提交中..." : "提交更新"}
         </button>
 

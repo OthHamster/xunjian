@@ -127,7 +127,85 @@ const submitRisk = (payload) => {
   }
 };
 
+/**
+ * 获取风险工单列表
+ * @param {Object} [filters]
+ * @param {string} [filters.status] - 按状态筛选：open / resolved
+ * @param {number} [filters.limit] - 返回条数，默认 50
+ * @param {number} [filters.offset] - 偏移量，默认 0
+ * @returns {{ success: boolean, risks?: Array, error?: string }}
+ */
+const listRisks = (filters = {}) => {
+  try {
+    assertDatabase();
+
+    const statusFilter = ["open", "resolved"].includes(filters?.status)
+      ? filters.status
+      : null;
+    const limit = Number.isFinite(Number(filters?.limit))
+      ? Math.max(1, Math.min(Number(filters.limit), 200))
+      : 50;
+    const offset = Number.isFinite(Number(filters?.offset))
+      ? Math.max(0, Number(filters.offset))
+      : 0;
+
+    let sql = `
+      SELECT
+        RiskID,
+        ReporterUserID,
+        Address,
+        Longitude,
+        Latitude,
+        Description,
+        RiskLevel,
+        Status,
+        RequestClose,
+        PhotoURL,
+        ReportedAt,
+        ResolvedAt,
+        ResolvedByUserID,
+        ResolveNote
+      FROM risks
+    `;
+    const params = [];
+
+    if (statusFilter) {
+      sql += " WHERE Status = ?";
+      params.push(statusFilter);
+    }
+
+    sql += " ORDER BY ReportedAt DESC LIMIT ? OFFSET ?";
+    params.push(limit, offset);
+
+    const rows = db.prepare(sql).all(...params);
+
+    return {
+      success: true,
+      risks: rows.map((row) => ({
+        riskId: row.RiskID,
+        reporterUserId: row.ReporterUserID,
+        address: row.Address,
+        longitude: row.Longitude,
+        latitude: row.Latitude,
+        description: row.Description,
+        riskLevel: row.RiskLevel,
+        status: row.Status,
+        requestClose: row.RequestClose,
+        photoUrl: row.PhotoURL,
+        reportedAt: row.ReportedAt,
+        resolvedAt: row.ResolvedAt,
+        resolvedByUserId: row.ResolvedByUserID,
+        resolveNote: row.ResolveNote,
+      })),
+    };
+  } catch (error) {
+    console.error("获取风险列表失败:", error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   setDatabase,
   submitRisk,
+  listRisks,
 };

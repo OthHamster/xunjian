@@ -271,7 +271,6 @@ const connectDatabase = () => {
   createTables(spatialReady);
   console.log("✓ 所有表检查/创建完毕");
 
-
   return db;
 };
 

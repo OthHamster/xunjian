@@ -5,6 +5,7 @@ import RouteManagerPage from "./RouteManagerPage";
 import RealTimeMonitorPage from "./RealTimeMonitorPage";
 import CheckpointManagerPage from "./CheckpointManagerPage";
 import TaskAssignPage from "./TaskAssignPage";
+import RiskManagerPage from "./RiskManagerPage";
 
 function AdminPage({ userInfo, role, onLogout, apiBaseUrl }) {
   return (
@@ -45,7 +46,10 @@ function AdminPage({ userInfo, role, onLogout, apiBaseUrl }) {
           path="usersManager"
           element={<UserManagerPage apiBaseUrl={apiBaseUrl} />}
         />
-        <Route path="risks" element={<div>这是风险处理</div>} />
+        <Route
+          path="risks"
+          element={<RiskManagerPage apiBaseUrl={apiBaseUrl} />}
+        />
         <Route
           path="online-users"
           element={<OnlineUsersPage apiBaseUrl={apiBaseUrl} />}

@@ -491,8 +491,10 @@ const findNearbyRisks = (longitude, latitude, distanceMeters = 20) => {
     const nearby = [];
     for (const row of rows) {
       const result = isDistanceWithin(
-        lon, lat,
-        row.Longitude, row.Latitude,
+        lon,
+        lat,
+        row.Longitude,
+        row.Latitude,
         dist,
       );
 

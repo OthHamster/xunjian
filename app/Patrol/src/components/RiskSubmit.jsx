@@ -90,7 +90,10 @@ function RiskSubmit({ apiBaseUrl, currentLocation, onSuccess, onError }) {
 
     // 防抖：位置变化后延迟 500ms 再查
     const timer = setTimeout(check, 500);
-    return () => { cancelled = true; clearTimeout(timer); };
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [currentLocation, apiBaseUrl]);
 
   const handleSubmit = async () => {
@@ -224,7 +227,9 @@ function RiskSubmit({ apiBaseUrl, currentLocation, onSuccess, onError }) {
             fontSize: 13,
           }}
         >
-          <strong style={{ color: "#e65100" }}>⚠ 附近 {nearbyRisks.length} 个相关风险：</strong>
+          <strong style={{ color: "#e65100" }}>
+            ⚠ 附近 {nearbyRisks.length} 个相关风险：
+          </strong>
           {nearbyRisks.map((r) => (
             <div key={r.riskId} style={{ marginTop: 2 }}>
               · <strong>#{r.riskId}</strong> {r.description}（{r.distance}m）

@@ -25,6 +25,8 @@ function UserManagerPage({ apiBaseUrl }) {
 
   const buildApiUrl = (path) => new URL(path, apiBaseUrl).toString();
 
+  const hasUsers = users.length > 0;
+
   const loadUsers = async () => {
     setLoading(true);
     setError("");

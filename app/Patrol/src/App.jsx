@@ -4,6 +4,7 @@ import { io } from "socket.io-client";
 import { Link, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { CONFIG } from "./config";
 import InspectorPage from "./pages/inspector/InspectorPage";
+import RepairPage from "./pages/repair/RepairPage";
 //测试socketio
 function Textbar({ socketRef }) {
   const [text, setText] = useState("");
@@ -122,6 +123,7 @@ function HomePage({
       )}
 
       {role === "inspector" && <Link to="/inspector">进入巡检子页面</Link>}
+      {role === "repair" && <Link to="/repair">进入维护页面</Link>}
 
       {userInfo && (
         <div>
@@ -277,7 +279,12 @@ function App() {
           return;
         }
 
-        // 只有巡检员账号有子页面，其他权限返回主页
+        if (role === "repair") {
+          navigate("/repair");
+          return;
+        }
+
+        // 只有巡检员和维修员有子页面，其他权限返回主页
         navigate("/");
         setLoginMessage("登录成功：当前角色无 App 子页面，已返回主页");
       } else {
@@ -435,6 +442,18 @@ function App() {
               nextCheckpointId={nextCheckpointId}
               activeTaskRefreshToken={activeTaskRefreshToken}
               taskCompleteNoticeToken={taskCompleteNoticeToken}
+            />
+          </RequireRole>
+        }
+      />
+      <Route
+        path="/repair"
+        element={
+          <RequireRole userInfo={userInfo} allowedRoles={["repair", "admin"]}>
+            <RepairPage
+              userInfo={userInfo}
+              onLogout={handleLogout}
+              apiBaseUrl={apiBaseUrl}
             />
           </RequireRole>
         }

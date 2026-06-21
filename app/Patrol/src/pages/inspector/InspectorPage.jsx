@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import PhotoCapture from "../../components/PhotoCapture";
+import RiskSubmit from "../../components/RiskSubmit";
 import TaskSelection from "./TaskSelection";
 import TaskExecution from "./TaskExecution";
 
@@ -216,6 +218,11 @@ function InspectorPage({
       </div>
 
       <InspectorTextbar socketRef={socketRef} />
+
+      <PhotoCapture riskId={1} apiBaseUrl={apiBaseUrl} label="拍照并上传" />
+
+      <RiskSubmit apiBaseUrl={apiBaseUrl} currentLocation={currentLocation} />
+
       {completionNotice && (
         <div style={{ color: "#2e7d32", marginTop: 8 }}>{completionNotice}</div>
       )}

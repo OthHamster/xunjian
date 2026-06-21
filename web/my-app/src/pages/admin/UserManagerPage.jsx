@@ -1,11 +1,16 @@
 ﻿import { useEffect, useState } from "react";
 
-const ROLE_OPTIONS = ["admin", "inspector", "viewer"];
+const ROLE_OPTIONS = ["admin", "inspector", "viewer", "repair"];
 const ROLE_BADGE = {
   admin: "badge-danger",
   inspector: "badge-primary",
   viewer: "badge-info",
+  repair: "badge-success",
 };
+
+function EmptyUsersHint() {
+  return <div>暂无用户，请在表格底部添加用户。</div>;
+}
 
 function UserManagerPage({ apiBaseUrl }) {
   const [users, setUsers] = useState([]);

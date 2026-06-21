@@ -11,7 +11,7 @@ const routeRouter = express.Router();
 
 routeRouter.get(
   "/routes",
-  checkRole(["admin", "viewer", "inspector"]),
+  checkRole(["admin", "viewer", "inspector", "repair"]),
   (req, res) => {
     try {
       const result = routeUtils.listRoutes();
@@ -29,7 +29,7 @@ routeRouter.get(
 
 routeRouter.get(
   "/routes/:id",
-  checkRole(["admin", "viewer", "inspector"]),
+  checkRole(["admin", "viewer", "inspector", "repair"]),
   (req, res) => {
     const routeId = Number.parseInt(req.params.id, 10);
 
@@ -110,7 +110,7 @@ routeRouter.delete("/routes/:id", checkRole(["admin"]), (req, res) => {
 
 routeRouter.post(
   "/routes/:id/check-location",
-  checkRole(["admin", "inspector"]),
+  checkRole(["admin", "inspector", "repair"]),
   (req, res) => {
     const routeId = Number.parseInt(req.params.id, 10);
     const { longitude, latitude, bufferDistance } = req.body || {};
@@ -148,7 +148,7 @@ routeRouter.post(
 
 routeRouter.get(
   "/routes/:id/distance",
-  checkRole(["admin", "viewer", "inspector"]),
+  checkRole(["admin", "viewer", "inspector", "repair"]),
   (req, res) => {
     const routeId = Number.parseInt(req.params.id, 10);
     const longitude = Number(req.query.longitude);

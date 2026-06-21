@@ -59,6 +59,7 @@ const config = require("./utils/config.js");
 const { connectDatabase } = require("./utils/database.js");
 const { datarouter } = require("./routers/user.js");
 const { routeRouter } = require("./routers/route.js");
+const { riskRouter } = require("./routers/risk.js");
 const checkRouter = require("./routers/check.js");
 const { initializeUsers } = require("./utils/user.js");
 const {
@@ -77,6 +78,10 @@ app.set("trust proxy", 1);
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
+const photoDir = process.pkg
+  ? path.join(path.dirname(process.execPath), "photo")
+  : path.join(__dirname, "photo");
+app.use("/photo", express.static(photoDir));
 app.use(express.urlencoded({ extended: true }));
 
 // 配置会话中间件
@@ -105,6 +110,7 @@ initializeUsers();
 app.use(router);
 app.use(datarouter);
 app.use(routeRouter);
+app.use(riskRouter);
 app.use(checkRouter);
 app.get("/test", checkRole(["admin", "viewer"]), (req, res) => {
   res.json("aaa");

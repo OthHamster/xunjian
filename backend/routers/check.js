@@ -46,7 +46,7 @@ checkRouter.post(
 
 checkRouter.get(
   "/routes/:id/checkpoints",
-  checkRole(["admin", "viewer", "inspector"]),
+  checkRole(["admin", "viewer", "inspector", "repair"]),
   (req, res) => {
     const routeId = Number.parseInt(req.params.id, 10);
 
@@ -90,7 +90,7 @@ checkRouter.delete("/checkpoints/:id", checkRole(["admin"]), (req, res) => {
 
 checkRouter.get(
   "/checkpoints/:id",
-  checkRole(["admin", "viewer", "inspector"]),
+  checkRole(["admin", "viewer", "inspector", "repair"]),
   (req, res) => {
     const checkpointId = Number.parseInt(req.params.id, 10);
 
@@ -139,7 +139,7 @@ checkRouter.post("/tasks/assign", checkRole(["admin"]), (req, res) => {
 
 checkRouter.get(
   "/tasks/ongoing",
-  checkRole(["admin", "inspector"]),
+  checkRole(["admin", "inspector", "repair"]),
   (req, res) => {
     try {
       const userId = Number.parseInt(req.query.userId, 10);
@@ -161,7 +161,7 @@ checkRouter.get(
 
 checkRouter.get(
   "/tasks/active",
-  checkRole(["admin", "inspector"]),
+  checkRole(["admin", "inspector", "repair"]),
   (req, res) => {
     const userId = Number.parseInt(req.query.userId, 10);
 
@@ -185,7 +185,7 @@ checkRouter.get(
 
 checkRouter.post(
   "/tasks/activate",
-  checkRole(["admin", "inspector"]),
+  checkRole(["admin", "inspector", "repair"]),
   (req, res) => {
     const taskId = Number.parseInt(req.body?.taskId, 10);
     const userId = Number.parseInt(req.body?.userId, 10);

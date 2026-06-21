@@ -567,7 +567,7 @@ function App() {
           return;
         }
 
-        if (role === "inspector") {
+        if (role === "inspector" || role === "repair") {
           alert("权限不足，无法进入系统，将自动退出登录。");
           await handleLogout();
           return;

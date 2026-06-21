@@ -137,7 +137,8 @@ const createTables = (spatialReady) => {
       Description TEXT NOT NULL,
       RiskLevel TEXT NOT NULL CHECK (RiskLevel IN ('low','medium','high')),
       Status TEXT NOT NULL DEFAULT 'open' CHECK (Status IN ('open','resolved')),
-        RequestClose INTEGER NOT NULL DEFAULT 0,
+      RequestClose INTEGER NOT NULL DEFAULT 0,
+      PhotoURL TEXT,
       ReportedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       ResolvedAt DATETIME,
       RelatedRisk INTEGER,
@@ -262,6 +263,8 @@ const connectDatabase = () => {
   userUtils.setDatabase(db);
   checkUtils.setDatabase(db);
   taskStorage.setDatabase(db);
+  const riskUtils = require("./risk.js");
+  riskUtils.setDatabase(db);
 
   const spatialReady = ensureSpatialMetadata();
 

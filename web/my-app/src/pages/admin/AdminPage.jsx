@@ -6,6 +6,8 @@ import RealTimeMonitorPage from "./RealTimeMonitorPage";
 import CheckpointManagerPage from "./CheckpointManagerPage";
 import TaskAssignPage from "./TaskAssignPage";
 import "./admin.css";
+import RiskManagerPage from "./RiskManagerPage";
+import RiskDetailPage from "./RiskDetailPage";
 
 const NAV_GROUPS = [
   {

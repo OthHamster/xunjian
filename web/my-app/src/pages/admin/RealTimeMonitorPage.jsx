@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import MapContainer from "./MapContainer";
 
 const USERS_POLL_INTERVAL_MS = 2000;
@@ -158,51 +158,164 @@ function RealTimeMonitorPage({ apiBaseUrl }) {
   }, []);
 
   return (
-    <div>
-      <MapContainer
-        mode="preview"
-        users={users}
-        paths={routePaths}
-        points={checkpoints}
-      />
-      <h3>实时监控</h3>
-      <div style={{ marginBottom: 12 }}>
-        <button
-          type="button"
-          onClick={() => {
-            loadOnlineUsers();
-            loadRoutesWithPaths();
-          }}
-          disabled={loadingUsers || loadingRoutes}
-        >
-          {loadingUsers || loadingRoutes ? "刷新中..." : "刷新"}
-        </button>
+    <>
+      <div className="grid grid-4">
+        <div className="stat-card primary">
+          <div className="stat-label">在岗人员</div>
+          <div className="stat-value">{loadingUsers ? "—" : userCount}</div>
+          <div className="stat-foot">每 2 秒刷新</div>
+        </div>
+        <div className="stat-card success">
+          <div className="stat-label">巡检路线</div>
+          <div className="stat-value">{loadingRoutes ? "—" : routes.length}</div>
+          <div className="stat-foot">每 10 秒刷新</div>
+        </div>
+        <div className="stat-card warning">
+          <div className="stat-label">打卡点</div>
+          <div className="stat-value">{loadingRoutes ? "—" : checkpoints.length}</div>
+          <div className="stat-foot">路线检查点</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">系统状态</div>
+          <div className="stat-value" style={{ fontSize: 18 }}>
+            {error ? (
+              <span className="badge badge-danger">异常</span>
+            ) : (
+              <span className="badge badge-success">运行中</span>
+            )}
+          </div>
+          <div className="stat-foot">实时监控视图</div>
+        </div>
       </div>
 
-      {error && (
-        <div style={{ color: "#c62828", marginBottom: 12 }}>{error}</div>
-      )}
-
-      {!error && (
-        <div style={{ marginBottom: 12 }}>
-          在线人数：{userCount}，路线数量：{routes.length}
+      <div className="card">
+        <div className="card-header">
+          <div className="card-title">实时地图</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span className="badge badge-success">
+              <span className="badge-dot" /> 实时
+            </span>
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => {
+                loadOnlineUsers();
+                loadRoutesWithPaths();
+              }}
+              disabled={loadingUsers || loadingRoutes}
+            >
+              {loadingUsers || loadingRoutes ? "刷新中…" : "刷新"}
+            </button>
+          </div>
         </div>
-      )}
-
-      {!error && lastUsersUpdatedAt && (
-        <div style={{ marginBottom: 12 }}>
-          用户刷新：{new Date(lastUsersUpdatedAt).toLocaleString()}
+        <div className="card-body" style={{ padding: 0 }}>
+          <MapContainer
+            mode="preview"
+            users={users}
+            paths={routePaths}
+            points={checkpoints}
+          />
         </div>
-      )}
+      </div>
 
-      {!error && lastRoutesUpdatedAt && (
-        <div style={{ marginBottom: 12 }}>
-          路线刷新：{new Date(lastRoutesUpdatedAt).toLocaleString()}
+      <div className="grid grid-2">
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">人员动态</div>
+            {lastUsersUpdatedAt && (
+              <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+                {new Date(lastUsersUpdatedAt).toLocaleTimeString()}
+              </span>
+            )}
+          </div>
+          <div className="card-body">
+            {error && <div className="alert alert-error">{error}</div>}
+            {!error && (
+              <div style={{ display: "grid", gap: 10 }}>
+                <Stat label="在岗人数" value={userCount} />
+                <Stat label="路线数量" value={routes.length} />
+                <Stat
+                  label="最后刷新"
+                  value={
+                    lastUsersUpdatedAt
+                      ? new Date(lastUsersUpdatedAt).toLocaleString()
+                      : "—"
+                  }
+                />
+              </div>
+            )}
+            {!loadingUsers && users.length === 0 && !error && (
+              <div className="empty" style={{ padding: 20 }}>
+                <div>暂无在线用户</div>
+              </div>
+            )}
+          </div>
         </div>
-      )}
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">路线状态</div>
+            {lastRoutesUpdatedAt && (
+              <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+                {new Date(lastRoutesUpdatedAt).toLocaleTimeString()}
+              </span>
+            )}
+          </div>
+          <div className="card-body">
+            {routes.length === 0 && !loadingRoutes && !error && (
+              <div className="empty" style={{ padding: 20 }}>
+                <div>暂无路线</div>
+              </div>
+            )}
+            {routes.length > 0 && (
+              <div style={{ display: "grid", gap: 8 }}>
+                {routes.map((r) => (
+                  <div
+                    key={r.routeId}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "8px 10px",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "var(--radius-sm)",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          background: "var(--color-primary)",
+                        }}
+                      />
+                      <span style={{ fontWeight: 500 }}>{r.name}</span>
+                    </div>
+                    <span className="badge">ID #{r.routeId}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
 
-      {!loadingUsers && users.length === 0 && !error && <div>暂无在线用户</div>}
-      {!loadingRoutes && routes.length === 0 && !error && <div>暂无路线</div>}
+function Stat({ label, value }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "8px 0",
+        borderBottom: "1px dashed var(--color-border)",
+      }}
+    >
+      <span style={{ color: "var(--color-text-muted)" }}>{label}</span>
+      <strong>{value}</strong>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 
 function TaskAssignPage({ apiBaseUrl }) {
   const [users, setUsers] = useState([]);
@@ -233,177 +233,308 @@ function TaskAssignPage({ apiBaseUrl }) {
   };
 
   return (
-    <div>
-      <h3>任务派发</h3>
-      {error && <div style={{ color: "#c62828" }}>{error}</div>}
-
-      <div style={{ marginBottom: 12 }}>
-        <button type="button" onClick={loadUsers} disabled={loadingUsers}>
-          {loadingUsers ? "用户加载中..." : "刷新成员"}
+    <>
+      <div className="toolbar">
+        <strong style={{ fontSize: 14 }}>任务派发</strong>
+        <span className="badge badge-info">
+          已选 {selectedUserIds.size} 人 / {selectedRouteIds.size} 条
+        </span>
+        <div className="toolbar-spacer" />
+        <button
+          type="button"
+          className="btn btn-sm"
+          onClick={loadUsers}
+          disabled={loadingUsers}
+        >
+          {loadingUsers ? "用户加载中…" : "刷新成员"}
         </button>
         <button
           type="button"
+          className="btn btn-sm"
           onClick={loadRoutes}
           disabled={loadingRoutes}
-          style={{ marginLeft: 8 }}
         >
-          {loadingRoutes ? "路线加载中..." : "刷新路线"}
+          {loadingRoutes ? "路线加载中…" : "刷新路线"}
         </button>
         <button
           type="button"
+          className="btn btn-sm"
           onClick={loadOngoingTasks}
           disabled={loadingTasks}
-          style={{ marginLeft: 8 }}
         >
-          {loadingTasks ? "任务加载中..." : "刷新任务"}
+          {loadingTasks ? "任务加载中…" : "刷新任务"}
         </button>
       </div>
 
-      <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-        <div style={{ minWidth: 260 }}>
-          <div style={{ marginBottom: 8 }}>
-            <strong>成员</strong>
-          </div>
-          <div style={{ marginBottom: 8 }}>
-            <button type="button" onClick={selectAllUsers}>
-              全选成员
-            </button>
-            <button type="button" onClick={clearUsers} style={{ marginLeft: 8 }}>
-              清空成员
-            </button>
-          </div>
-          {loadingUsers && <div>成员加载中...</div>}
-          {!loadingUsers && assignableUsers.length === 0 && (
-            <div>暂无可派发成员（仅 inspector 权限可派发）</div>
-          )}
-          {!loadingUsers && assignableUsers.length > 0 && (
-            <div style={{ maxHeight: 280, overflowY: "auto" }}>
-              {assignableUsers.map((user) => (
-                <label
-                  key={user.id}
-                  style={{ display: "block", marginBottom: 6 }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedUserIds.has(user.id)}
-                    onChange={() => toggleUser(user.id)}
-                  />
-                  <span style={{ marginLeft: 6 }}>
-                    {user.username} (ID: {user.id}, {user.roles})
-                  </span>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div style={{ minWidth: 260 }}>
-          <div style={{ marginBottom: 8 }}>
-            <strong>路线</strong>
-          </div>
-          <div style={{ marginBottom: 8 }}>
-            <button type="button" onClick={selectAllRoutes}>
-              全选路线
-            </button>
-            <button type="button" onClick={clearRoutes} style={{ marginLeft: 8 }}>
-              清空路线
-            </button>
-          </div>
-          {loadingRoutes && <div>路线加载中...</div>}
-          {!loadingRoutes && routes.length === 0 && <div>暂无路线</div>}
-          {!loadingRoutes && routes.length > 0 && (
-            <div style={{ maxHeight: 280, overflowY: "auto" }}>
-              {routes.map((route) => (
-                <label
-                  key={route.routeId}
-                  style={{ display: "block", marginBottom: 6 }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedRouteIds.has(route.routeId)}
-                    onChange={() => toggleRoute(route.routeId)}
-                  />
-                  <span style={{ marginLeft: 6 }}>
-                    {route.name} (ID: {route.routeId})
-                  </span>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div style={{ marginTop: 16 }}>
-        <button type="button" onClick={assignTasks} disabled={assigning}>
-          {assigning ? "派发中..." : "派发任务"}
-        </button>
-        <span style={{ marginLeft: 12, color: "#555" }}>
-          已选成员 {selectedUserIds.size} 人，已选路线 {selectedRouteIds.size} 条
-        </span>
-      </div>
+      {error && <div className="alert alert-error">{error}</div>}
 
       {result && (
-        <div style={{ marginTop: 12 }}>
-          <div>
-            已派发 {result.successCount}/{result.total} 条任务
-          </div>
-          {result.failureCount > 0 && (
-            <div style={{ color: "#c62828", marginTop: 8 }}>
-              <div>失败 {result.failureCount} 条：</div>
-              {result.failures.slice(0, 6).map((item, index) => (
-                <div key={`${item.userId}-${item.routeId}-${index}`}>
-                  成员 {userMap.get(item.userId)?.username || item.userId} / 路线 {routeMap.get(item.routeId)?.name || item.routeId}：{item.error}
-                </div>
-              ))}
-              {result.failureCount > 6 && (
-                <div>仅显示前 6 条失败记录</div>
-              )}
-            </div>
-          )}
+        <div
+          className={
+            "alert " + (result.failureCount > 0 ? "alert-warning" : "alert-success")
+          }
+        >
+          已派发 {result.successCount}/{result.total} 条任务
+          {result.failureCount > 0 && ` · 失败 ${result.failureCount} 条`}
         </div>
       )}
 
-      <div style={{ marginTop: 20 }}>
-        <h4>进行中任务</h4>
-        {loadingTasks && <div>进行中任务加载中...</div>}
-        {!loadingTasks && ongoingTasks.length === 0 && (
-          <div>暂无进行中任务</div>
-        )}
-        {!loadingTasks && ongoingTasks.length > 0 && (
-          <table
-            border="1"
-            cellPadding="8"
-            cellSpacing="0"
-            style={{ width: "100%" }}
-          >
-            <thead>
-              <tr>
-                <th>任务ID</th>
-                <th>成员</th>
-                <th>路线</th>
-                <th>派发时间</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ongoingTasks.map((task) => (
-                <tr key={task.taskId}>
-                  <td>{task.taskId}</td>
-                  <td>
-                    {userMap.get(task.userId)?.username || task.userId} (ID:
-                    {task.userId})
-                  </td>
-                  <td>
-                    {routeMap.get(task.routeId)?.name || task.routeId} (ID:
-                    {task.routeId})
-                  </td>
-                  <td>{task.assignedAt}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+      <div className="grid grid-2">
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">选择成员</div>
+            <span className="badge">仅 inspector 可派发</span>
+          </div>
+          <div className="card-body">
+            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+              <button type="button" className="btn btn-sm" onClick={selectAllUsers}>
+                全选
+              </button>
+              <button type="button" className="btn btn-sm" onClick={clearUsers}>
+                清空
+              </button>
+              <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+                已选 {selectedUserIds.size} / {assignableUsers.length}
+              </span>
+            </div>
+            <div
+              style={{
+                maxHeight: 280,
+                overflowY: "auto",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-sm)",
+              }}
+            >
+              {loadingUsers && (
+                <div className="empty" style={{ padding: 20 }}>
+                  <div className="spinner" />
+                  <span>成员加载中…</span>
+                </div>
+              )}
+              {!loadingUsers && assignableUsers.length === 0 && (
+                <div className="empty" style={{ padding: 20 }}>
+                  <div>暂无可派发成员</div>
+                </div>
+              )}
+              {!loadingUsers &&
+                assignableUsers.map((user) => (
+                  <label
+                    key={user.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "8px 12px",
+                      borderBottom: "1px solid var(--color-border)",
+                      cursor: "pointer",
+                      background: selectedUserIds.has(user.id)
+                        ? "var(--color-primary-soft)"
+                        : "transparent",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedUserIds.has(user.id)}
+                      onChange={() => toggleUser(user.id)}
+                    />
+                    <span style={{ fontWeight: 500 }}>{user.username}</span>
+                    <span style={{ fontSize: 12, color: "var(--color-text-soft)" }}>
+                      ID: {user.id}
+                    </span>
+                  </label>
+                ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">选择路线</div>
+            <span className="badge">共 {routes.length} 条</span>
+          </div>
+          <div className="card-body">
+            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+              <button type="button" className="btn btn-sm" onClick={selectAllRoutes}>
+                全选
+              </button>
+              <button type="button" className="btn btn-sm" onClick={clearRoutes}>
+                清空
+              </button>
+              <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+                已选 {selectedRouteIds.size} / {routes.length}
+              </span>
+            </div>
+            <div
+              style={{
+                maxHeight: 280,
+                overflowY: "auto",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-sm)",
+              }}
+            >
+              {loadingRoutes && (
+                <div className="empty" style={{ padding: 20 }}>
+                  <div className="spinner" />
+                  <span>路线加载中…</span>
+                </div>
+              )}
+              {!loadingRoutes && routes.length === 0 && (
+                <div className="empty" style={{ padding: 20 }}>
+                  <div>暂无路线</div>
+                </div>
+              )}
+              {!loadingRoutes &&
+                routes.map((route) => (
+                  <label
+                    key={route.routeId}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "8px 12px",
+                      borderBottom: "1px solid var(--color-border)",
+                      cursor: "pointer",
+                      background: selectedRouteIds.has(route.routeId)
+                        ? "var(--color-primary-soft)"
+                        : "transparent",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedRouteIds.has(route.routeId)}
+                      onChange={() => toggleRoute(route.routeId)}
+                    />
+                    <span style={{ fontWeight: 500 }}>{route.name}</span>
+                    <span style={{ fontSize: 12, color: "var(--color-text-soft)" }}>
+                      ID: {route.routeId}
+                    </span>
+                  </label>
+                ))}
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+
+      <div className="card">
+        <div className="card-body" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={assignTasks}
+            disabled={assigning}
+          >
+            {assigning ? "派发中…" : "派发任务"}
+          </button>
+          <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
+            将为每位成员派发其选中的全部路线（笛卡尔积）
+          </span>
+        </div>
+      </div>
+
+      {result?.failureCount > 0 && (
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">派发失败明细</div>
+            <span className="badge badge-warning">共 {result.failureCount} 条</span>
+          </div>
+          <div className="card-body" style={{ padding: 0 }}>
+            <div style={{ overflowX: "auto" }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>成员</th>
+                    <th>路线</th>
+                    <th>失败原因</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.failures.slice(0, 10).map((item, index) => (
+                    <tr key={`${item.userId}-${item.routeId}-${index}`}>
+                      <td>
+                        {userMap.get(item.userId)?.username || `ID:${item.userId}`}
+                      </td>
+                      <td>
+                        {routeMap.get(item.routeId)?.name || `ID:${item.routeId}`}
+                      </td>
+                      <td style={{ color: "var(--color-danger)" }}>{item.error}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {result.failureCount > 10 && (
+              <div style={{ padding: 12, color: "var(--color-text-soft)", fontSize: 12 }}>
+                仅显示前 10 条失败记录
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="card">
+        <div className="card-header">
+          <div className="card-title">进行中任务</div>
+          <span className="badge badge-primary">{ongoingTasks.length} 条</span>
+        </div>
+        <div className="card-body" style={{ padding: 0 }}>
+          {loadingTasks && (
+            <div className="empty" style={{ padding: 20 }}>
+              <div className="spinner" />
+              <span>进行中任务加载中…</span>
+            </div>
+          )}
+          {!loadingTasks && ongoingTasks.length === 0 && (
+            <div className="empty" style={{ padding: 24 }}>
+              <div className="empty-icon">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
+                  <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.7" />
+                  <path d="M8 9h8M8 13h8M8 17h5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                </svg>
+              </div>
+              <div>暂无进行中任务</div>
+            </div>
+          )}
+          {ongoingTasks.length > 0 && (
+            <div style={{ overflowX: "auto" }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>任务ID</th>
+                    <th>成员</th>
+                    <th>路线</th>
+                    <th>派发时间</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ongoingTasks.map((task) => (
+                    <tr key={task.taskId}>
+                      <td style={{ color: "var(--color-text-soft)" }}>#{task.taskId}</td>
+                      <td>
+                        <div style={{ fontWeight: 500 }}>
+                          {userMap.get(task.userId)?.username || `ID:${task.userId}`}
+                        </div>
+                        <div style={{ fontSize: 12, color: "var(--color-text-soft)" }}>
+                          ID: {task.userId}
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 500 }}>
+                          {routeMap.get(task.routeId)?.name || `ID:${task.routeId}`}
+                        </div>
+                        <div style={{ fontSize: 12, color: "var(--color-text-soft)" }}>
+                          ID: {task.routeId}
+                        </div>
+                      </td>
+                      <td>{task.assignedAt}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
 

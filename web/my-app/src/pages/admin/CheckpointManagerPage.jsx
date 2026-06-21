@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import MapContainer from "./MapContainer";
 import PointManager from "../../utils/pointManager";
 
@@ -267,16 +267,15 @@ function CheckpointManagerPage({ apiBaseUrl }) {
   const displayPoints = [...checkpoints, ...draftPoints];
 
   return (
-    <div>
-      <h3>打卡点管理</h3>
-      <div style={{ marginBottom: 12 }}>
-        <label>
-          选择路线
+    <>
+      <div className="toolbar">
+        <strong style={{ fontSize: 14 }}>路线选择</strong>
+        <div className="field" style={{ marginBottom: 0, flex: 1, maxWidth: 360 }}>
           <select
+            className="select"
             value={selectedRouteId}
             onChange={handleRouteChange}
             disabled={loadingRoutes}
-            style={{ marginLeft: 8 }}
           >
             <option value="">请选择路线</option>
             {routes.map((route) => (
@@ -285,152 +284,229 @@ function CheckpointManagerPage({ apiBaseUrl }) {
               </option>
             ))}
           </select>
-        </label>
+        </div>
+        <span className="badge">共 {routes.length} 条路线</span>
+        <div className="toolbar-spacer" />
         <button
           type="button"
+          className="btn btn-sm"
           onClick={loadRoutes}
           disabled={loadingRoutes}
-          style={{ marginLeft: 8 }}
         >
-          {loadingRoutes ? "刷新中..." : "刷新路线"}
+          {loadingRoutes ? "刷新中…" : "刷新路线"}
         </button>
         {selectedRouteId && (
           <button
             type="button"
+            className="btn btn-sm"
             onClick={() => loadCheckpoints(selectedRouteId)}
             disabled={loadingCheckpoints}
-            style={{ marginLeft: 8 }}
           >
-            {loadingCheckpoints ? "刷新中..." : "刷新打卡点"}
+            {loadingCheckpoints ? "刷新中…" : "刷新打卡点"}
           </button>
         )}
       </div>
 
-      {error && (
-        <div style={{ color: "#c62828", marginBottom: 12 }}>{error}</div>
-      )}
+      {error && <div className="alert alert-error">{error}</div>}
 
-      <MapContainer
-        mode="checkpoint-edit"
-        path={routePath}
-        points={displayPoints}
-        pointManager={pointManagerRef.current}
-        onPointsChange={handlePointsChange}
-        onValidatePoint={validatePointDistance}
-      />
-
-      {lastUpdatedAt && (
-        <div style={{ marginBottom: 12 }}>
-          最后刷新：{new Date(lastUpdatedAt).toLocaleString()}
+      <div className="card">
+        <div className="card-header">
+          <div className="card-title">地图编辑</div>
+          <span className="badge badge-info">
+            距离约束 ≤ 10 米
+          </span>
         </div>
-      )}
-
-      <div style={{ marginTop: 12 }}>
-        <button type="button" onClick={saveDraftPoints} disabled={saving}>
-          {saving ? "保存中..." : "保存新增打卡点"}
-        </button>
+        <div className="card-body" style={{ padding: 0 }}>
+          <MapContainer
+            mode="checkpoint-edit"
+            path={routePath}
+            points={displayPoints}
+            pointManager={pointManagerRef.current}
+            onPointsChange={handlePointsChange}
+            onValidatePoint={validatePointDistance}
+          />
+        </div>
       </div>
 
-      <div style={{ marginTop: 12 }}>
-        <strong>新增打卡点</strong>
+      <div className="grid grid-3">
+        <div className="stat-card primary">
+          <div className="stat-label">已选路线</div>
+          <div className="stat-value" style={{ fontSize: 18 }}>
+            {selectedRouteId
+              ? routes.find((r) => String(r.routeId) === String(selectedRouteId))?.name ||
+                `#${selectedRouteId}`
+              : "—"}
+          </div>
+          <div className="stat-foot">用于在地图上添加打卡点</div>
+        </div>
+        <div className="stat-card success">
+          <div className="stat-label">已有打卡点</div>
+          <div className="stat-value">{checkpoints.length}</div>
+          <div className="stat-foot">已保存到路线</div>
+        </div>
+        <div className="stat-card warning">
+          <div className="stat-label">新增打卡点</div>
+          <div className="stat-value">{draftPoints.length}</div>
+          <div className="stat-foot">尚未保存</div>
+        </div>
       </div>
-      {draftPoints.length === 0 && (
-        <div style={{ marginTop: 8 }}>暂无新增打卡点</div>
-      )}
-      {draftPoints.length > 0 && (
-        <table
-          border="1"
-          cellPadding="8"
-          cellSpacing="0"
-          style={{ width: "100%", marginTop: 8 }}
-        >
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>名称</th>
-              <th>经度</th>
-              <th>纬度</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {draftPoints.map((point, index) => (
-              <tr key={`draft-${index}`}>
-                <td>{index + 1}</td>
-                <td>
-                  <input
-                    type="text"
-                    value={point.name}
-                    onChange={(event) =>
-                      updateDraftName(index, event.target.value)
-                    }
-                  />
-                </td>
-                <td>{point.longitude}</td>
-                <td>{point.latitude}</td>
-                <td>
-                  <button type="button" onClick={() => removeDraftPoint(index)}>
-                    删除
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
 
-      <div style={{ marginTop: 16 }}>
-        <strong>已存在打卡点</strong>
+      <div className="card">
+        <div className="card-header">
+          <div className="card-title">新增打卡点（待保存）</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={saveDraftPoints}
+              disabled={saving}
+            >
+              {saving ? "保存中…" : "保存新增打卡点"}
+            </button>
+          </div>
+        </div>
+        <div className="card-body" style={{ padding: 0 }}>
+          {draftPoints.length === 0 && (
+            <div className="empty" style={{ padding: 24 }}>
+              <div>暂无新增打卡点</div>
+              <div style={{ color: "var(--color-text-soft)" }}>在地图上点击路线附近添加（≤10米）</div>
+            </div>
+          )}
+
+          {draftPoints.length > 0 && (
+            <div style={{ overflowX: "auto" }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th style={{ width: 60 }}>#</th>
+                    <th>名称</th>
+                    <th>经度</th>
+                    <th>纬度</th>
+                    <th style={{ width: 100 }}>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {draftPoints.map((point, index) => (
+                    <tr key={`draft-${index}`}>
+                      <td>{index + 1}</td>
+                      <td>
+                        <input
+                          type="text"
+                          value={point.name}
+                          onChange={(event) =>
+                            updateDraftName(index, event.target.value)
+                          }
+                        />
+                      </td>
+                      <td>
+                        <code style={{ fontSize: 12 }}>
+                          {Number(point.longitude).toFixed(6)}
+                        </code>
+                      </td>
+                      <td>
+                        <code style={{ fontSize: 12 }}>
+                          {Number(point.latitude).toFixed(6)}
+                        </code>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-danger"
+                          onClick={() => removeDraftPoint(index)}
+                        >
+                          删除
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
-      {!loadingCheckpoints && checkpoints.length === 0 && (
-        <div style={{ marginTop: 8 }}>暂无打卡点</div>
-      )}
-      {checkpoints.length > 0 && (
-        <table
-          border="1"
-          cellPadding="8"
-          cellSpacing="0"
-          style={{ width: "100%", marginTop: 8 }}
-        >
-          <thead>
-            <tr>
-              <th>SeqNo</th>
-              <th>名称</th>
-              <th>经度</th>
-              <th>纬度</th>
-              <th>状态</th>
-              <th>创建时间</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {checkpoints.map((point) => (
-              <tr key={point.checkpointId}>
-                <td>{point.seqNo}</td>
-                <td>{point.name}</td>
-                <td>{point.longitude}</td>
-                <td>{point.latitude}</td>
-                <td>{point.status}</td>
-                <td>
-                  {point.createdAt
-                    ? new Date(point.createdAt).toLocaleString()
-                    : "-"}
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    onClick={() => deleteCheckpoint(point.checkpointId)}
-                    disabled={saving}
-                  >
-                    删除
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
+
+      <div className="card">
+        <div className="card-header">
+          <div className="card-title">已存在打卡点</div>
+          {lastUpdatedAt && (
+            <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+              更新于 {new Date(lastUpdatedAt).toLocaleString()}
+            </span>
+          )}
+        </div>
+        <div className="card-body" style={{ padding: 0 }}>
+          {!loadingCheckpoints && checkpoints.length === 0 && (
+            <div className="empty" style={{ padding: 24 }}>
+              <div>暂无打卡点</div>
+            </div>
+          )}
+
+          {checkpoints.length > 0 && (
+            <div style={{ overflowX: "auto" }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>SeqNo</th>
+                    <th>名称</th>
+                    <th>经度</th>
+                    <th>纬度</th>
+                    <th>状态</th>
+                    <th>创建时间</th>
+                    <th style={{ width: 100 }}>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {checkpoints.map((point) => (
+                    <tr key={point.checkpointId}>
+                      <td>{point.seqNo}</td>
+                      <td style={{ fontWeight: 500 }}>{point.name}</td>
+                      <td>
+                        <code style={{ fontSize: 12 }}>
+                          {Number(point.longitude).toFixed(6)}
+                        </code>
+                      </td>
+                      <td>
+                        <code style={{ fontSize: 12 }}>
+                          {Number(point.latitude).toFixed(6)}
+                        </code>
+                      </td>
+                      <td>
+                        <span
+                          className={
+                            "badge " +
+                            (point.status === "active"
+                              ? "badge-success"
+                              : "badge-warning")
+                          }
+                        >
+                          {point.status}
+                        </span>
+                      </td>
+                      <td>
+                        {point.createdAt
+                          ? new Date(point.createdAt).toLocaleString()
+                          : "—"}
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-danger"
+                          onClick={() => deleteCheckpoint(point.checkpointId)}
+                          disabled={saving}
+                        >
+                          删除
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
 

@@ -39,6 +39,95 @@ riskRouter.get(
   },
 );
 
+// 获取单个风险工单详情
+riskRouter.get(
+  "/risks/:id",
+  checkRole(["admin", "viewer", "inspector", "repair"]),
+  (req, res) => {
+    const riskId = Number.parseInt(req.params.id, 10);
+
+    if (!Number.isInteger(riskId) || riskId <= 0) {
+      return res.status(400).json({ error: "风险ID不合法" });
+    }
+
+    try {
+      const result = riskUtils.getRiskById(riskId);
+
+      if (!result.success) {
+        return res.status(404).json({ error: result.error });
+      }
+
+      return res.json(result);
+    } catch (error) {
+      console.error("get risk error:", error);
+      return res.status(500).json({ error: "获取风险详情失败" });
+    }
+  },
+);
+
+// 更新风险工单（追加工单记录/修改状态）
+riskRouter.put(
+  "/risks/:id",
+  checkRole(["admin", "inspector", "repair"]),
+  upload.any(),
+  (req, res) => {
+    const riskId = Number.parseInt(req.params.id, 10);
+
+    if (!Number.isInteger(riskId) || riskId <= 0) {
+      return res.status(400).json({ error: "风险ID不合法" });
+    }
+
+    const { text, status } = req.body || {};
+    const userId = req.session?.user?.id;
+
+    // 提取上传的文件并保存
+    const files = (req.files || []).map((f) => ({
+      buffer: f.buffer,
+      originalname: f.originalname,
+    }));
+
+    const savedUrls = [];
+    for (const file of files) {
+      if (file && Buffer.isBuffer(file.buffer) && file.buffer.length > 0) {
+        const saveResult = picManager.saveImage(
+          riskId,
+          file.buffer,
+          file.originalname || "image.jpg",
+        );
+        if (saveResult.success) {
+          savedUrls.push(saveResult.relativePath.replace(/\\/g, "/"));
+        }
+      }
+    }
+
+    try {
+      // 如果有文本内容，追加工单记录
+      if (text && text.trim()) {
+        const logResult = riskUtils.appendRiskLog(riskId, {
+          text: text.trim(),
+          photoUrl: savedUrls.length > 0 ? savedUrls.join(",") : "",
+          userId,
+        });
+
+        if (!logResult.success) {
+          return res.status(500).json({ error: logResult.error });
+        }
+      }
+
+      // 返回更新后的风险详情
+      const detail = riskUtils.getRiskById(riskId);
+      if (!detail.success) {
+        return res.status(404).json({ error: detail.error });
+      }
+
+      return res.json(detail);
+    } catch (error) {
+      console.error("update risk error:", error);
+      return res.status(500).json({ error: "更新风险工单失败" });
+    }
+  },
+);
+
 // 提交风险工单
 riskRouter.post(
   "/risks",

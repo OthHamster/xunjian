@@ -1,6 +1,14 @@
 let db;
 
+const path = require("path");
 const picManager = require("./pic_manager.js");
+const { readJsonSerialized, writeJsonSerialized } = require("./json_manager.js");
+
+// 工单记录存储目录：pkg 模式下在 exe 同级，开发模式下在 backend/risk
+const runtimeBaseDir = process.pkg
+  ? path.dirname(process.execPath)
+  : path.join(__dirname, "..");
+const RISK_LOG_DIR = path.join(runtimeBaseDir, "risk");
 
 /**
  * 注入数据库实例
@@ -108,6 +116,13 @@ const submitRisk = (payload) => {
       );
     }
 
+    // 创建对应的工单记录文件
+    createRiskLog(riskId, {
+      text: description,
+      photoUrl: photoUrl || "",
+      userId: reporterUserId,
+    });
+
     return {
       success: true,
       riskId,
@@ -204,8 +219,140 @@ const listRisks = (filters = {}) => {
   }
 };
 
+/**
+ * 获取工单记录文件路径
+ * @param {number} riskId
+ * @returns {string}
+ */
+const getLogPath = (riskId) => path.join(RISK_LOG_DIR, `${riskId}.json`);
+
+/**
+ * 创建风险工单记录文件（初始为空数组，可附带首条记录）
+ * @param {number} riskId
+ * @param {{ text?: string, photoUrl?: string, userId?: number }} [firstRecord]
+ * @returns {{ success: boolean, error?: string }}
+ */
+const createRiskLog = (riskId, firstRecord) => {
+  try {
+    const records = [];
+
+    if (firstRecord) {
+      records.push({
+        text: String(firstRecord.text || ""),
+        photoUrl: String(firstRecord.photoUrl || ""),
+        userId: Number.isFinite(Number(firstRecord.userId))
+          ? Number(firstRecord.userId)
+          : null,
+        submittedAt: new Date().toISOString(),
+      });
+    }
+
+    writeJsonSerialized(getLogPath(riskId), records);
+    return { success: true };
+  } catch (error) {
+    console.error("创建工单记录失败:", error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * 向风险工单追加一条记录
+ * @param {number} riskId
+ * @param {{ text: string, photoUrl?: string, userId: number }} record
+ * @returns {{ success: boolean, error?: string }}
+ */
+const appendRiskLog = (riskId, record) => {
+  try {
+    const current = readJsonSerialized(getLogPath(riskId), []);
+    if (!Array.isArray(current)) {
+      throw new Error("工单记录格式异常");
+    }
+
+    current.push({
+      text: String(record?.text || ""),
+      photoUrl: String(record?.photoUrl || ""),
+      userId: Number.isFinite(Number(record?.userId))
+        ? Number(record.userId)
+        : null,
+      submittedAt: new Date().toISOString(),
+    });
+
+    writeJsonSerialized(getLogPath(riskId), current);
+    return { success: true };
+  } catch (error) {
+    console.error("追加工单记录失败:", error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * 获取单个风险详情（含工单记录）
+ * @param {number} riskId
+ * @returns {{ success: boolean, risk?: Object, error?: string }}
+ */
+const getRiskById = (riskId) => {
+  try {
+    assertDatabase();
+
+    const row = db
+      .prepare(
+        `SELECT
+          RiskID,
+          ReporterUserID,
+          Address,
+          Longitude,
+          Latitude,
+          Description,
+          RiskLevel,
+          Status,
+          RequestClose,
+          PhotoURL,
+          ReportedAt,
+          ResolvedAt,
+          ResolvedByUserID,
+          ResolveNote
+        FROM risks WHERE RiskID = ?`,
+      )
+      .get(riskId);
+
+    if (!row) {
+      return { success: false, error: "风险工单不存在" };
+    }
+
+    // 读取工单记录
+    const logs = readJsonSerialized(getLogPath(riskId), []);
+
+    return {
+      success: true,
+      risk: {
+        riskId: row.RiskID,
+        reporterUserId: row.ReporterUserID,
+        address: row.Address,
+        longitude: row.Longitude,
+        latitude: row.Latitude,
+        description: row.Description,
+        riskLevel: row.RiskLevel,
+        status: row.Status,
+        requestClose: row.RequestClose,
+        photoUrl: row.PhotoURL,
+        reportedAt: row.ReportedAt,
+        resolvedAt: row.ResolvedAt,
+        resolvedByUserId: row.ResolvedByUserID,
+        resolveNote: row.ResolveNote,
+        logs: Array.isArray(logs) ? logs : [],
+      },
+    };
+  } catch (error) {
+    console.error("获取风险详情失败:", error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   setDatabase,
   submitRisk,
   listRisks,
+  getRiskById,
+  createRiskLog,
+  appendRiskLog,
 };

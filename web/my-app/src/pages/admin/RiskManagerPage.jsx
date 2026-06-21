@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const RISK_LEVEL_LABELS = {
   low: "低",
@@ -7,6 +8,7 @@ const RISK_LEVEL_LABELS = {
 };
 
 function RiskManagerPage({ apiBaseUrl }) {
+  const navigate = useNavigate();
   const [risks, setRisks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -96,7 +98,17 @@ function RiskManagerPage({ apiBaseUrl }) {
           </thead>
           <tbody>
             {risks.map((risk) => (
-              <tr key={risk.riskId}>
+              <tr
+                key={risk.riskId}
+                onClick={() => navigate(`/admin/risks/${risk.riskId}`)}
+                style={{ cursor: "pointer" }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "#f0f0f0";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "";
+                }}
+              >
                 <td>{risk.riskId}</td>
                 <td>{RISK_LEVEL_LABELS[risk.riskLevel] || risk.riskLevel}</td>
                 <td style={statusStyle(risk.status)}>
@@ -111,10 +123,7 @@ function RiskManagerPage({ apiBaseUrl }) {
                   {risk.longitude?.toFixed(6)}, {risk.latitude?.toFixed(6)}
                 </td>
                 <td>
-                  {risk.photoUrl
-                    ? risk.photoUrl.split(",").length
-                    : 0}{" "}
-                  张
+                  {risk.photoUrl ? risk.photoUrl.split(",").length : 0} 张
                 </td>
                 <td>
                   {risk.reportedAt

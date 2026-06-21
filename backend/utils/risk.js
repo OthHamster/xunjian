@@ -206,7 +206,8 @@ const listRisks = (filters = {}) => {
       risks: rows.map((row) => ({
         riskId: row.RiskID,
         reporterUserId: row.ReporterUserID,
-        reporterUserName: nameMap[row.ReporterUserID] || String(row.ReporterUserID),
+        reporterUserName:
+          nameMap[row.ReporterUserID] || String(row.ReporterUserID),
         address: row.Address,
         longitude: row.Longitude,
         latitude: row.Latitude,
@@ -299,7 +300,9 @@ const appendRiskLog = (riskId, record) => {
  * @returns {Record<number, string>}
  */
 const resolveUsernames = (userIds) => {
-  const ids = [...new Set(userIds.filter((id) => Number.isFinite(id) && id > 0))];
+  const ids = [
+    ...new Set(userIds.filter((id) => Number.isFinite(id) && id > 0)),
+  ];
   if (ids.length === 0) {
     return {};
   }
@@ -368,7 +371,8 @@ const getRiskById = (riskId) => {
       risk: {
         riskId: row.RiskID,
         reporterUserId: row.ReporterUserID,
-        reporterUserName: nameMap[row.ReporterUserID] || String(row.ReporterUserID),
+        reporterUserName:
+          nameMap[row.ReporterUserID] || String(row.ReporterUserID),
         address: row.Address,
         longitude: row.Longitude,
         latitude: row.Latitude,
@@ -394,11 +398,71 @@ const getRiskById = (riskId) => {
   }
 };
 
+/**
+ * 更新风险工单状态 / 解决信息
+ * @param {number} riskId
+ * @param {{ status?: string, resolveNote?: string, resolvedByUserId?: number }} updates
+ * @returns {{ success: boolean, error?: string }}
+ */
+const updateRiskById = (riskId, updates = {}) => {
+  try {
+    assertDatabase();
+
+    const exists = db
+      .prepare("SELECT RiskID FROM risks WHERE RiskID = ?")
+      .get(riskId);
+    if (!exists) {
+      return { success: false, error: "风险工单不存在" };
+    }
+
+    const sets = [];
+    const params = [];
+
+    if (updates.status && ["open", "resolved"].includes(updates.status)) {
+      sets.push("Status = ?");
+      params.push(updates.status);
+      if (updates.status === "resolved") {
+        sets.push("ResolvedAt = datetime('now')");
+        if (Number.isFinite(Number(updates.resolvedByUserId))) {
+          sets.push("ResolvedByUserID = ?");
+          params.push(Number(updates.resolvedByUserId));
+        }
+      }
+    }
+
+    if (updates.resolveNote !== undefined) {
+      sets.push("ResolveNote = ?");
+      params.push(String(updates.resolveNote || ""));
+    }
+
+    if (updates.requestClose !== undefined) {
+      const val = updates.requestClose ? 1 : 0;
+      sets.push("RequestClose = ?");
+      params.push(val);
+    }
+
+    if (sets.length === 0) {
+      return { success: true };
+    }
+
+    params.push(riskId);
+    db.prepare(`UPDATE risks SET ${sets.join(", ")} WHERE RiskID = ?`).run(
+      ...params,
+    );
+
+    return { success: true };
+  } catch (error) {
+    console.error("更新风险工单失败:", error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   setDatabase,
   submitRisk,
   listRisks,
   getRiskById,
+  updateRiskById,
   createRiskLog,
   appendRiskLog,
 };

@@ -113,6 +113,36 @@ function RiskDetailPage({ apiBaseUrl }) {
     }
   };
 
+  const handleStatusToggle = async () => {
+    const newStatus = risk.status === "open" ? "resolved" : "open";
+    setSubmitting(true);
+    setUpdateMsg("");
+
+    try {
+      const formData = new FormData();
+      formData.append("status", newStatus);
+
+      const resp = await fetch(buildApiUrl(`risks/${riskId}`), {
+        method: "PUT",
+        credentials: "include",
+        body: formData,
+      });
+      const data = await resp.json();
+
+      if (!resp.ok || !data?.success) {
+        throw new Error(data?.error || "状态更新失败");
+      }
+
+      setRisk(data.risk);
+      setUpdateMsg(`状态已更新为${newStatus === "open" ? "待处理" : "已解决"}`);
+    } catch (err) {
+      console.error("toggle status error:", err);
+      setUpdateMsg(`失败：${err.message}`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) {
     return <div>加载中...</div>;
   }
@@ -166,6 +196,19 @@ function RiskDetailPage({ apiBaseUrl }) {
             >
               {risk.status === "open" ? "待处理" : "已解决"}
             </span>
+            <button
+              type="button"
+              onClick={handleStatusToggle}
+              disabled={submitting}
+              style={{ marginLeft: 12, fontSize: 13 }}
+            >
+              {risk.status === "open" ? "标记已解决" : "重新打开"}
+            </button>
+            {risk.requestClose ? (
+              <span style={{ marginLeft: 12, color: "#e65100", fontSize: 13 }}>
+                已申请关闭，等待审核
+              </span>
+            ) : null}
           </span>
         </div>
         <div style={{ marginBottom: 6 }}>

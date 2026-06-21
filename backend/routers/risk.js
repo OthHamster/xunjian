@@ -77,7 +77,7 @@ riskRouter.put(
       return res.status(400).json({ error: "风险ID不合法" });
     }
 
-    const { text, status } = req.body || {};
+    const { text, status, requestClose } = req.body || {};
     const userId = req.session?.user?.id;
 
     // 提取上传的文件并保存
@@ -101,6 +101,20 @@ riskRouter.put(
     }
 
     try {
+      // 请求关闭（维修人员发起）
+      if (requestClose === "1" || requestClose === "true") {
+        riskUtils.updateRiskById(riskId, { requestClose: 1 });
+      }
+
+      // 更新状态
+      if (status && ["open", "resolved"].includes(status)) {
+        riskUtils.updateRiskById(riskId, {
+          status,
+          resolvedByUserId: status === "resolved" ? userId : undefined,
+          requestClose: status === "resolved" ? 0 : undefined,
+        });
+      }
+
       // 如果有文本内容，追加工单记录
       if (text && text.trim()) {
         const logResult = riskUtils.appendRiskLog(riskId, {

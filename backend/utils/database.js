@@ -66,6 +66,22 @@ const ensureSpatialMetadata = () => {
  * @returns {boolean} 如果成功加载返回 true，否则返回 false
  */
 const loadSpatialiteExtension = () => {
+  // pkg 打包后 DLL 在只读快照中，需先提取到真实文件系统才能加载
+  const runtimeBaseDir = process.pkg
+    ? path.dirname(process.execPath)
+    : path.join(__dirname, "..");
+
+  const extractFromSnapshot = (snapshotPath) => {
+    if (!process.pkg || !fs.existsSync(snapshotPath)) return snapshotPath;
+    const filename = path.basename(snapshotPath);
+    const realPath = path.join(runtimeBaseDir, filename);
+    if (!fs.existsSync(realPath)) {
+      fs.copyFileSync(snapshotPath, realPath);
+      console.log(`📦 已提取扩展至: ${realPath}`);
+    }
+    return realPath;
+  };
+
   const extensionCandidates = [
     // 1. 最高优先级：环境变量指定的路径
     process.env.SPATIALITE_EXTENSION_PATH,
@@ -73,11 +89,13 @@ const loadSpatialiteExtension = () => {
     // 2. 针对 Linux x86_64 (Docker Debian/Ubuntu) 环境的绝对路径
     "/usr/lib/x86_64-linux-gnu/mod_spatialite.so",
 
-    // 3. 针对本地 Windows 开发环境的相对路径
-    path.join(__dirname, "../assets/mod_spatialite.dll"),
-    path.join(
-      __dirname,
-      "../node_modules/spatialite/dist/win32/x64/mod_spatialite.dll",
+    // 3. 针对本地 Windows 开发环境的相对路径（pkg 下自动提取）
+    extractFromSnapshot(path.join(__dirname, "../assets/mod_spatialite.dll")),
+    extractFromSnapshot(
+      path.join(
+        __dirname,
+        "../node_modules/spatialite/dist/win32/x64/mod_spatialite.dll",
+      ),
     ),
 
     // 4. 最后尝试系统默认 PATH 中的名称
@@ -247,7 +265,12 @@ const createTables = (spatialReady) => {
  * @returns {Database} 已连接的 better-sqlite3 实例
  */
 const connectDatabase = () => {
-  db = new Database(path.join(__dirname, "../mydatabase.db"), {
+  // pkg 打包后 __dirname 是只读快照路径，数据库必须放在 exe 同级目录
+  const runtimeBaseDir = process.pkg
+    ? path.dirname(process.execPath)
+    : path.join(__dirname, "..");
+  const dbPath = path.join(runtimeBaseDir, "mydatabase.db");
+  db = new Database(dbPath, {
     verbose: console.log,
   });
   console.log("成功连接到 SQLite 数据库 (better-sqlite3)");

@@ -1,13 +1,43 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const fs = require("fs");
 const session = require("express-session");
 const http = require("http");
 const { Server } = require("socket.io");
 const FileStore = require("session-file-store")(session); // 文件存储
 const app = express();
 const server = http.createServer(app);
-const useSecureCookie = process.env.COOKIE_SECURE !== "false";
+
+// ============================================
+// 确保首次运行时所需目录存在
+// ============================================
+const ensureDir = (dirPath) => {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+    console.log(`📁 已创建目录: ${dirPath}`);
+  }
+};
+
+const runtimeBaseDir = process.pkg
+  ? path.dirname(process.execPath)
+  : __dirname;
+
+const requiredDirs = ["sessions", "photo", "risk"];
+requiredDirs.forEach((dir) => {
+  ensureDir(path.join(runtimeBaseDir, dir));
+});
+// ============================================
+// 自动判断是否启用 secure cookie：
+// - 显式设置 COOKIE_SECURE 环境变量优先
+// - production 环境默认启用（HTTPS 反向代理）
+// - 本地开发默认关闭（HTTP localhost 无法使用 secure cookie）
+const useSecureCookie = (() => {
+  if (process.env.COOKIE_SECURE !== undefined) {
+    return process.env.COOKIE_SECURE !== "false";
+  }
+  return process.env.NODE_ENV === "production";
+})();
 const allowedOrigins = [
   "http://localhost",
   "https://localhost",
@@ -78,9 +108,7 @@ app.set("trust proxy", 1);
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
-const photoDir = process.pkg
-  ? path.join(path.dirname(process.execPath), "photo")
-  : path.join(__dirname, "photo");
+const photoDir = path.join(runtimeBaseDir, "photo");
 app.use("/photo", express.static(photoDir));
 app.use(express.urlencoded({ extended: true }));
 
@@ -93,7 +121,7 @@ app.use(
     saveUninitialized: false, // 不要保存未初始化的会话（如未登录的匿名会话）
     store: new FileStore({
       // 使用文件存储会话数据
-      path: "./sessions", // 会话文件存储目录
+      path: path.join(runtimeBaseDir, "sessions"), // 会话文件存储目录
       ttl: 24 * 60 * 60, // 会话有效期（秒），这里设24小时
     }),
     cookie: {

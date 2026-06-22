@@ -273,7 +273,7 @@ export default function MapContainer({
           position: point,
           anchor: "center",
           offset: new AMap.Pixel(0, 0),
-          content: `<div style=\"display:flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${markerColor};color:#fff;font-size:11px;font-weight:600;border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.3);\">${
+          content: `<div style=\"box-sizing:border-box;display:flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${markerColor};color:#fff;font-size:11px;font-weight:600;border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.3);\">${
             index + 1
           }</div>`,
           title: `点位 ${index + 1}`,
@@ -327,11 +327,11 @@ export default function MapContainer({
         return new AMap.Marker({
           position: [gcjLng, gcjLat],
           anchor: "bottom-center",
-          offset: new AMap.Pixel(0, -7),
+          offset: new AMap.Pixel(0, 7),
           content:
             `<div style=\"display:flex;flex-direction:column;align-items:center;gap:4px;\">` +
             `<div style=\"background:#2f7d32;color:#fff;padding:2px 6px;border-radius:10px;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,0.25);\">${label}</div>` +
-            `<div style=\"width:10px;height:10px;border-radius:50%;background:#2f7d32;border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.3);\"></div>` +
+            `<div style=\"box-sizing:border-box;width:10px;height:10px;border-radius:50%;background:#2f7d32;border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.3);\"></div>` +
             `</div>`,
         });
       })
@@ -369,11 +369,11 @@ export default function MapContainer({
         return new AMap.Marker({
           position: [gcjLng, gcjLat],
           anchor: "bottom-center",
-          offset: new AMap.Pixel(0, -7),
+          offset: new ref.AMap.Pixel(0, 7),
           content:
             `<div style=\"display:flex;flex-direction:column;align-items:center;gap:4px;\">` +
             `<div style=\"background:#d84315;color:#fff;padding:2px 6px;border-radius:10px;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,0.25);\">${label}</div>` +
-            `<div style=\"width:10px;height:10px;border-radius:50%;background:#d84315;border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.3);\"></div>` +
+            `<div style=\"box-sizing:border-box;width:10px;height:10px;border-radius:50%;background:#d84315;border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.3);\"></div>` +
             `</div>`,
         });
       })

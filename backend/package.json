@@ -5,9 +5,9 @@
   "bin": "server.js",
   "scripts": {
     "start": "node server.js",
-    "build": "node ./node_modules/@yao-pkg/pkg/lib-es5/bin.js . --targets node20-win-x64 --out-path dist",
-    "build:win": "node ./node_modules/@yao-pkg/pkg/lib-es5/bin.js . --targets node20-win-x64 --out-path dist",
-    "build:linux": "node ./node_modules/@yao-pkg/pkg/lib-es5/bin.js . --targets node20-linux-x64 --out-path dist"
+    "build": "node ./node_modules/@yao-pkg/pkg/lib-es5/bin.js . --targets node24-win-x64 --out-path dist",
+    "build:win": "node ./node_modules/@yao-pkg/pkg/lib-es5/bin.js . --targets node24-win-x64 --out-path dist",
+    "build:linux": "node ./node_modules/@yao-pkg/pkg/lib-es5/bin.js . --targets node24-linux-x64 --out-path dist"
   },
   "keywords": [],
   "author": "",
@@ -21,8 +21,8 @@
       "node_modules/better-sqlite3/build/Release/better_sqlite3.node"
     ],
     "targets": [
-      "node20-win-x64",
-      "node20-linux-x64"
+      "node24-win-x64",
+      "node24-linux-x64"
     ]
   },
   "dependencies": {

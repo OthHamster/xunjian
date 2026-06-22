@@ -221,11 +221,11 @@ function ObserverMap({ currentLocation, path = [], points = [] }) {
         return new ref.AMap.Marker({
           position: [gcjLng, gcjLat],
           anchor: "bottom-center",
-          offset: new ref.AMap.Pixel(0, -7),
+          offset: new ref.AMap.Pixel(0, 7),
           content:
             `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">` +
             `<div style="background:#d84315;color:#fff;padding:2px 6px;border-radius:10px;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,0.25);">${label}</div>` +
-            `<div style="width:10px;height:10px;border-radius:50%;background:#d84315;border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.3);"></div>` +
+            `<div style="box-sizing:border-box;width:10px;height:10px;border-radius:50%;background:#d84315;border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.3);"></div>` +
             `</div>`,
         });
       })
@@ -259,11 +259,11 @@ function ObserverMap({ currentLocation, path = [], points = [] }) {
     ref.currentMarker = new ref.AMap.Marker({
       position: [gcjLng, gcjLat],
       anchor: "bottom-center",
-      offset: new ref.AMap.Pixel(0, -7),
+      offset: new ref.AMap.Pixel(0, 7),
       content:
         `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">` +
         `<div style="background:#2f7d32;color:#fff;padding:2px 6px;border-radius:10px;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,0.25);">当前位置</div>` +
-        `<div style="width:10px;height:10px;border-radius:50%;background:#2f7d32;border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.3);"></div>` +
+        `<div style="box-sizing:border-box;width:10px;height:10px;border-radius:50%;background:#2f7d32;border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.3);"></div>` +
         `</div>`,
     });
 

@@ -19,9 +19,7 @@ const ensureDir = (dirPath) => {
   }
 };
 
-const runtimeBaseDir = process.pkg
-  ? path.dirname(process.execPath)
-  : __dirname;
+const runtimeBaseDir = process.pkg ? path.dirname(process.execPath) : __dirname;
 
 const requiredDirs = ["sessions", "photo", "risk"];
 requiredDirs.forEach((dir) => {

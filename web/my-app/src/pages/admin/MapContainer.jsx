@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import "./MapContainer.css";
 import AMapLoader from "@amap/amap-jsapi-loader";
 
@@ -145,6 +145,31 @@ export default function MapContainer({
   const pathManagerRef = useRef(pathManager);
   const pointManagerRef = useRef(pointManager);
   const modeRef = useRef(mode);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = useCallback(() => {
+    setIsFullscreen((v) => !v);
+  }, []);
+
+  // ESC 退出全屏
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") setIsFullscreen(false);
+    };
+    if (isFullscreen) window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isFullscreen]);
+
+  // 全屏切换时触发地图 resize
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const ref = mapRef.current;
+      if (ref?.map && typeof ref.map.resize === "function") {
+        try { ref.map.resize(); } catch (_) { /* ignore */ }
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [isFullscreen]);
 
   useEffect(() => {
     onPickRef.current = onPick;
@@ -302,7 +327,7 @@ export default function MapContainer({
         return new AMap.Marker({
           position: [gcjLng, gcjLat],
           anchor: "bottom-center",
-          offset: new AMap.Pixel(0, -6),
+          offset: new AMap.Pixel(0, -7),
           content:
             `<div style=\"display:flex;flex-direction:column;align-items:center;gap:4px;\">` +
             `<div style=\"background:#2f7d32;color:#fff;padding:2px 6px;border-radius:10px;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,0.25);\">${label}</div>` +
@@ -343,8 +368,8 @@ export default function MapContainer({
         const label = point?.name || `打卡点 ${index + 1}`;
         return new AMap.Marker({
           position: [gcjLng, gcjLat],
-          anchor: "center",
-          offset: new AMap.Pixel(0, 0),
+          anchor: "bottom-center",
+          offset: new AMap.Pixel(0, -7),
           content:
             `<div style=\"display:flex;flex-direction:column;align-items:center;gap:4px;\">` +
             `<div style=\"background:#d84315;color:#fff;padding:2px 6px;border-radius:10px;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,0.25);\">${label}</div>` +
@@ -549,11 +574,20 @@ export default function MapContainer({
   }, [points]);
 
   return (
-    <div
-      id="container"
-      className="container"
-      data-mode={mode}
-      style={{ height: "400px" }}
-    ></div>
+    <div className={`map-container${isFullscreen ? " fullscreen" : ""}`}>
+      <button
+        type="button"
+        className="map-fullscreen-btn"
+        title={isFullscreen ? "退出全屏 (Esc)" : "全屏"}
+        onClick={toggleFullscreen}
+      >
+        {isFullscreen ? "✕" : "⛶"}
+      </button>
+      <div
+        id="container"
+        data-mode={mode}
+        style={{ width: "100%", height: "100%" }}
+      />
+    </div>
   );
 }

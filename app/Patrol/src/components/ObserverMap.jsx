@@ -220,8 +220,8 @@ function ObserverMap({ currentLocation, path = [], points = [] }) {
         const label = point?.name || `打卡点 ${index + 1}`;
         return new ref.AMap.Marker({
           position: [gcjLng, gcjLat],
-          anchor: "center",
-          offset: new ref.AMap.Pixel(0, 0),
+          anchor: "bottom-center",
+          offset: new ref.AMap.Pixel(0, -7),
           content:
             `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">` +
             `<div style="background:#d84315;color:#fff;padding:2px 6px;border-radius:10px;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,0.25);">${label}</div>` +
@@ -259,7 +259,7 @@ function ObserverMap({ currentLocation, path = [], points = [] }) {
     ref.currentMarker = new ref.AMap.Marker({
       position: [gcjLng, gcjLat],
       anchor: "bottom-center",
-      offset: new ref.AMap.Pixel(0, -6),
+      offset: new ref.AMap.Pixel(0, -7),
       content:
         `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">` +
         `<div style="background:#2f7d32;color:#fff;padding:2px 6px;border-radius:10px;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,0.25);">当前位置</div>` +

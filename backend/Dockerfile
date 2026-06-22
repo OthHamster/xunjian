@@ -22,9 +22,16 @@ RUN npm install
 
 COPY . .
 
+# 6. 入口脚本（初始化挂载目录 + 配置文件兜底）
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 ENV NODE_ENV=production
 ENV PORT=1145
 
 EXPOSE 1145
 
-CMD ["node", "server.js"]
+# 声明挂载点（数据持久化）
+VOLUME ["/app/sessions", "/app/photo", "/app/risk"]
+
+ENTRYPOINT ["docker-entrypoint.sh"]

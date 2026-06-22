@@ -133,7 +133,7 @@ function HomePage({
         </div>
       )}
 
-      <Textbar socketRef={socketRef} />
+
     </>
   );
 }

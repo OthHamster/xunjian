@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 
-const RISK_LEVEL_LABELS = {
-  low: "低",
-  medium: "中",
-  high: "高",
+const LEVEL_BADGE = {
+  low: "badge-info",
+  medium: "badge-warning",
+  high: "badge-danger",
 };
+const LEVEL_LABEL = { low: "低", medium: "中", high: "高" };
 
 function RiskDetailPage({ apiBaseUrl }) {
   const { riskId } = useParams();
@@ -144,250 +145,334 @@ function RiskDetailPage({ apiBaseUrl }) {
   };
 
   if (loading) {
-    return <div>加载中...</div>;
+    return (
+      <div className="empty">
+        <div className="spinner" />
+        <span>加载中…</span>
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <div>
-        <div style={{ color: "#c62828" }}>{error}</div>
-        <Link to="/admin/risks">← 返回风险列表</Link>
-      </div>
+      <>
+        <div className="alert alert-error">{error}</div>
+        <Link
+          to="/admin/risks"
+          className="btn btn-sm"
+          style={{ marginTop: 12 }}
+        >
+          ← 返回风险列表
+        </Link>
+      </>
     );
   }
 
   if (!risk) {
     return (
-      <div>
-        <div>风险工单不存在</div>
-        <Link to="/admin/risks">← 返回风险列表</Link>
-      </div>
+      <>
+        <div className="empty">风险工单不存在</div>
+        <Link
+          to="/admin/risks"
+          className="btn btn-sm"
+          style={{ marginTop: 12 }}
+        >
+          ← 返回风险列表
+        </Link>
+      </>
     );
   }
 
+  const imgUrl = (u) => {
+    if (!u) return "";
+    if (u.startsWith("http")) return u;
+    return u.startsWith("/") ? `${apiBaseUrl}${u}` : `${apiBaseUrl}/${u}`;
+  };
+
   return (
-    <div>
-      <div style={{ marginBottom: 12 }}>
-        <Link to="/admin/risks">← 返回风险列表</Link>
-      </div>
-
-      <h3>风险工单 #{risk.riskId}</h3>
-
-      {/* 风险基本信息 */}
-      <div
-        style={{
-          border: "1px solid #ccc",
-          borderRadius: 6,
-          padding: 12,
-          marginBottom: 16,
-          backgroundColor: "#fafafa",
-        }}
-      >
-        <div style={{ marginBottom: 6 }}>
-          <strong>等级：</strong>
-          {RISK_LEVEL_LABELS[risk.riskLevel] || risk.riskLevel}
-          <span style={{ marginLeft: 16 }}>
-            <strong>状态：</strong>
-            <span
-              style={{
-                color: risk.status === "open" ? "#d32f2f" : "#2e7d32",
-                fontWeight: "bold",
-              }}
-            >
-              {risk.status === "open" ? "待处理" : "已解决"}
-            </span>
-            <button
-              type="button"
-              onClick={handleStatusToggle}
-              disabled={submitting}
-              style={{ marginLeft: 12, fontSize: 13 }}
-            >
-              {risk.status === "open" ? "标记已解决" : "重新打开"}
-            </button>
-            {risk.requestClose ? (
-              <span style={{ marginLeft: 12, color: "#e65100", fontSize: 13 }}>
-                已申请关闭，等待审核
-              </span>
-            ) : null}
-          </span>
-        </div>
-        <div style={{ marginBottom: 6 }}>
-          <strong>地址：</strong>
-          {risk.address || "-"}
-        </div>
-        <div style={{ marginBottom: 6 }}>
-          <strong>坐标：</strong>
-          {risk.longitude?.toFixed(6)}, {risk.latitude?.toFixed(6)}
-        </div>
-        <div style={{ marginBottom: 6 }}>
-          <strong>上报时间：</strong>
-          {risk.reportedAt ? new Date(risk.reportedAt).toLocaleString() : "-"}
-        </div>
-        <div>
-          <strong>描述：</strong>
-          {risk.description}
-        </div>
-      </div>
-
-      {/* 工单记录 */}
-      <h4>处理记录</h4>
-      {(!risk.logs || risk.logs.length === 0) && (
-        <div style={{ color: "#888", marginBottom: 12 }}>暂无处理记录</div>
-      )}
-      {risk.logs &&
-        risk.logs.map((log, index) => (
-          <div
-            key={index}
-            style={{
-              border: "1px solid #e0e0e0",
-              borderRadius: 4,
-              padding: 10,
-              marginBottom: 8,
-            }}
+    <>
+      <div className="toolbar">
+        <Link to="/admin/risks" className="btn btn-sm">
+          ← 返回列表
+        </Link>
+        <strong style={{ fontSize: 14 }}>工单详情 #{risk.riskId}</strong>
+        <span className={"badge " + (LEVEL_BADGE[risk.riskLevel] || "")}>
+          {LEVEL_LABEL[risk.riskLevel] || risk.riskLevel}
+        </span>
+        {risk.status === "open" ? (
+          <span className="badge badge-danger">待处理</span>
+        ) : (
+          <span className="badge badge-success">已解决</span>
+        )}
+        {risk.requestClose ? (
+          <span
+            className="badge badge-warning"
+            style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
           >
-            <div style={{ fontSize: 12, color: "#888", marginBottom: 4 }}>
-              #{index + 1} · {log.username || log.userId || "-"} ·{" "}
-              {log.submittedAt
-                ? new Date(log.submittedAt).toLocaleString()
-                : "-"}
+            <span className="badge-dot" />
+            申请关闭
+          </span>
+        ) : null}
+        <div className="toolbar-spacer" />
+        <button
+          type="button"
+          className="btn btn-sm btn-primary"
+          onClick={handleStatusToggle}
+          disabled={submitting}
+        >
+          {risk.status === "open" ? "标记已解决" : "重新打开"}
+        </button>
+      </div>
+
+      {updateMsg && (
+        <div
+          className={
+            "alert " +
+            (updateMsg.startsWith("失败") ? "alert-error" : "alert-success")
+          }
+        >
+          {updateMsg}
+        </div>
+      )}
+
+      <div className="grid grid-2" style={{ marginTop: 16 }}>
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">基本信息</div>
+          </div>
+          <div className="card-body">
+            <div style={{ marginBottom: 8 }}>
+              <span style={{ color: "var(--color-text-soft)" }}>地址</span>
+              <div style={{ marginTop: 2 }}>{risk.address || "—"}</div>
             </div>
-            <div style={{ marginBottom: 4 }}>{log.text}</div>
-            {log.photoUrl && (
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {log.photoUrl.split(",").map((url, i) => (
+            <div style={{ marginBottom: 8 }}>
+              <span style={{ color: "var(--color-text-soft)" }}>坐标</span>
+              <div style={{ marginTop: 2 }}>
+                {risk.longitude?.toFixed(6)}, {risk.latitude?.toFixed(6)}
+              </div>
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <span style={{ color: "var(--color-text-soft)" }}>上报人</span>
+              <div style={{ marginTop: 2 }}>
+                {risk.reporterUserName || risk.reporterUserId || "—"}
+              </div>
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <span style={{ color: "var(--color-text-soft)" }}>上报时间</span>
+              <div style={{ marginTop: 2 }}>
+                {risk.reportedAt
+                  ? new Date(risk.reportedAt).toLocaleString()
+                  : "—"}
+              </div>
+            </div>
+            {risk.resolvedAt && (
+              <div style={{ marginBottom: 8 }}>
+                <span style={{ color: "var(--color-text-soft)" }}>
+                  解决时间
+                </span>
+                <div style={{ marginTop: 2 }}>
+                  {new Date(risk.resolvedAt).toLocaleString()}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">风险描述</div>
+          </div>
+          <div className="card-body">
+            {risk.description}
+            {risk.photoUrl && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  flexWrap: "wrap",
+                  marginTop: 12,
+                }}
+              >
+                {risk.photoUrl.split(",").map((url, i) => (
                   <img
                     key={i}
-                    src={
-                      url.startsWith("http://") || url.startsWith("https://")
-                        ? url
-                        : url.startsWith("/")
-                          ? `${apiBaseUrl}${url}`
-                          : `${apiBaseUrl}/${url}`
-                    }
-                    alt={`记录图片${i + 1}`}
+                    src={imgUrl(url)}
+                    alt={`现场图${i + 1}`}
                     style={{
-                      width: 120,
-                      height: 120,
+                      width: 100,
+                      height: 100,
                       objectFit: "cover",
-                      borderRadius: 4,
-                      border: "1px solid #ddd",
+                      borderRadius: 6,
+                      border: "1px solid var(--color-border)",
                     }}
                   />
                 ))}
               </div>
             )}
           </div>
-        ))}
+        </div>
+      </div>
 
-      {/* 更新区域 */}
-      <div
-        style={{
-          border: "1px solid #1976d2",
-          borderRadius: 6,
-          padding: 12,
-          marginTop: 16,
-          backgroundColor: "#f0f7ff",
-        }}
-      >
-        <h4 style={{ margin: "0 0 10px" }}>添加处理记录</h4>
-
-        <textarea
-          value={updateText}
-          onChange={(e) => setUpdateText(e.target.value)}
-          placeholder="输入处理备注..."
-          rows={3}
-          style={{ width: "100%", boxSizing: "border-box", marginBottom: 8 }}
-        />
-
-        <div style={{ marginBottom: 8 }}>
-          <label
-            htmlFor="update-photo-input"
-            style={{
-              cursor: "pointer",
-              color: "#1976d2",
-              textDecoration: "underline",
-            }}
-          >
-            添加图片
-          </label>
-          <input
-            id="update-photo-input"
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handlePhotoSelect}
-            style={{ display: "none" }}
-          />
-          <span style={{ marginLeft: 8, fontSize: 13, color: "#888" }}>
-            {updatePhotos.length} 张
+      <div className="card" style={{ marginTop: 16 }}>
+        <div className="card-header">
+          <div className="card-title">处理记录</div>
+          <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+            共 {risk.logs ? risk.logs.length : 0} 条
           </span>
         </div>
-
-        {updatePhotos.length > 0 && (
-          <div
-            style={{
-              display: "flex",
-              gap: 8,
-              flexWrap: "wrap",
-              marginBottom: 10,
-            }}
-          >
-            {updatePhotos.map((p, i) => (
-              <div key={i} style={{ position: "relative" }}>
-                <img
-                  src={p.preview}
-                  alt={`预览${i + 1}`}
+        <div className="card-body">
+          {(!risk.logs || risk.logs.length === 0) && (
+            <div className="empty" style={{ padding: "20px 0" }}>
+              暂无处理记录
+            </div>
+          )}
+          {risk.logs &&
+            risk.logs.map((log, i) => (
+              <div
+                key={i}
+                style={{
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 6,
+                  padding: 10,
+                  marginBottom: 8,
+                  backgroundColor: "var(--color-bg)",
+                }}
+              >
+                <div
                   style={{
-                    width: 80,
-                    height: 80,
-                    objectFit: "cover",
-                    borderRadius: 4,
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => handleRemovePhoto(i)}
-                  style={{
-                    position: "absolute",
-                    top: -6,
-                    right: -6,
-                    width: 20,
-                    height: 20,
-                    borderRadius: "50%",
-                    border: "none",
-                    background: "#d33",
-                    color: "#fff",
                     fontSize: 12,
-                    cursor: "pointer",
+                    color: "var(--color-text-soft)",
+                    marginBottom: 4,
                   }}
                 >
-                  ×
-                </button>
+                  #{i + 1} · {log.username || log.userId || "—"} ·{" "}
+                  {log.submittedAt
+                    ? new Date(log.submittedAt).toLocaleString()
+                    : "—"}
+                </div>
+                <div>{log.text}</div>
+                {log.photoUrl && (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      flexWrap: "wrap",
+                      marginTop: 8,
+                    }}
+                  >
+                    {log.photoUrl.split(",").map((url, j) => (
+                      <img
+                        key={j}
+                        src={imgUrl(url)}
+                        alt={`记录${j + 1}`}
+                        style={{
+                          width: 100,
+                          height: 100,
+                          objectFit: "cover",
+                          borderRadius: 6,
+                          border: "1px solid var(--color-border)",
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
-          </div>
-        )}
+        </div>
+      </div>
 
-        <button
-          type="button"
-          onClick={handleSubmitUpdate}
-          disabled={submitting}
-        >
-          {submitting ? "提交中..." : "提交更新"}
-        </button>
+      <div className="card" style={{ marginTop: 16 }}>
+        <div className="card-header">
+          <div className="card-title">添加处理记录</div>
+        </div>
+        <div className="card-body">
+          <textarea
+            value={updateText}
+            onChange={(e) => setUpdateText(e.target.value)}
+            placeholder="输入处理备注..."
+            rows={3}
+            style={{ width: "100%", boxSizing: "border-box", marginBottom: 8 }}
+          />
 
-        {updateMsg && (
           <div
             style={{
-              marginTop: 8,
-              color: updateMsg.startsWith("更新成功") ? "#2e7d32" : "#d33",
+              marginBottom: 8,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
             }}
           >
-            {updateMsg}
+            <label className="btn btn-sm" style={{ cursor: "pointer" }}>
+              选择图片
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handlePhotoSelect}
+                style={{ display: "none" }}
+              />
+            </label>
+            <span style={{ fontSize: 12, color: "var(--color-text-soft)" }}>
+              {updatePhotos.length} 张已选
+            </span>
           </div>
-        )}
+
+          {updatePhotos.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+                marginBottom: 8,
+              }}
+            >
+              {updatePhotos.map((p, i) => (
+                <div key={i} style={{ position: "relative" }}>
+                  <img
+                    src={p.preview}
+                    alt=""
+                    style={{
+                      width: 80,
+                      height: 80,
+                      objectFit: "cover",
+                      borderRadius: 6,
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleRemovePhoto(i)}
+                    style={{
+                      position: "absolute",
+                      top: -6,
+                      right: -6,
+                      width: 20,
+                      height: 20,
+                      borderRadius: "50%",
+                      border: "none",
+                      background: "var(--color-danger)",
+                      color: "#fff",
+                      fontSize: 12,
+                      cursor: "pointer",
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handleSubmitUpdate}
+            disabled={submitting}
+          >
+            {submitting ? "提交中..." : "提交更新"}
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

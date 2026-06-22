@@ -172,7 +172,28 @@ function InspectorPage({
       <button type="button" onClick={onLogout}>
         退出登录
       </button>
-
+      {completionNotice && (
+        <div style={{ color: "#2e7d32", marginTop: 8 }}>{completionNotice}</div>
+      )}
+      {activeTaskLoading && <div>激活任务加载中...</div>}
+      {!activeTaskLoading && activeTaskError && (
+        <div style={{ color: "#d33" }}>{activeTaskError}</div>
+      )}
+      {!activeTaskLoading && !activeTaskError && !activeTask && (
+        <TaskSelection
+          apiBaseUrl={apiBaseUrl}
+          userId={userInfo?.id}
+          onActivate={loadActiveTask}
+        />
+      )}
+      {!activeTaskLoading && !activeTaskError && activeTask && (
+        <TaskExecution
+          task={activeTask}
+          apiBaseUrl={apiBaseUrl}
+          currentLocation={currentLocation}
+          nextCheckpointId={nextCheckpointId}
+        />
+      )}
       <div style={{ marginTop: 16 }}>
         <div style={{ marginBottom: 8 }}>虚拟摇杆</div>
         <label>
@@ -217,34 +238,11 @@ function InspectorPage({
         </button>
       </div>
 
-      <InspectorTextbar socketRef={socketRef} />
 
-      <PhotoCapture riskId={1} apiBaseUrl={apiBaseUrl} label="拍照并上传" />
 
       <RiskSubmit apiBaseUrl={apiBaseUrl} currentLocation={currentLocation} />
 
-      {completionNotice && (
-        <div style={{ color: "#2e7d32", marginTop: 8 }}>{completionNotice}</div>
-      )}
-      {activeTaskLoading && <div>激活任务加载中...</div>}
-      {!activeTaskLoading && activeTaskError && (
-        <div style={{ color: "#d33" }}>{activeTaskError}</div>
-      )}
-      {!activeTaskLoading && !activeTaskError && !activeTask && (
-        <TaskSelection
-          apiBaseUrl={apiBaseUrl}
-          userId={userInfo?.id}
-          onActivate={loadActiveTask}
-        />
-      )}
-      {!activeTaskLoading && !activeTaskError && activeTask && (
-        <TaskExecution
-          task={activeTask}
-          apiBaseUrl={apiBaseUrl}
-          currentLocation={currentLocation}
-          nextCheckpointId={nextCheckpointId}
-        />
-      )}
+
     </>
   );
 }

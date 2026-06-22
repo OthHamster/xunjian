@@ -1,0 +1,575 @@
+智能巡检系统设计报告
+
+1 智能巡检系统分析
+1.1 需求分析
+1.1.1 项目背景
+随着城市基础设施和工业管网的不断扩展，传统的人工巡检方式存在效率低、监管难、数据不可追溯等问题。
+本系统旨在构建一套"Web管理后台 + 移动巡检APP"的智能巡检解决方案，实现巡检任务的可视化派发、实时监控、风险上报与闭环处理。
+
+1.1.2 功能需求
+（1）用户管理与角色权限控制
+系统支持四种角色：管理员(admin)、巡检员(inspector)、访客(viewer)、维修员(repair)。
+管理员拥有最高权限，可管理用户、路线、打卡点、派发任务、处理风险工单。
+巡检员通过移动APP接收任务、执行打卡、上报风险。
+维修员查看并处理风险工单，拍照回传维修结果。
+访客仅可查看区域总览和在线用户态势。
+
+（2）巡检路线与打卡点管理
+管理员在地图上绘制巡检路线（基于高德地图），系统自动存储为WGS84/UTM空间数据。
+每条路线可配置多个打卡点（checkpoint），按序号排列，支持增删改查。
+打卡点支持地理围栏校验，巡检员必须在打卡点附近一定范围内方可完成打卡。
+
+（3）任务派发与执行
+管理员为巡检员分配路线任务，任务可被激活后开始执行。
+巡检员按顺序依次到达打卡点完成打卡（拍照+备注），系统自动推进下一打卡点。
+任务完成后自动通知管理端，支持多轮循环巡检策略。
+
+（4）风险上报与工单闭环
+巡检员可在巡检过程中随时上报风险（附带现场照片、风险等级低/中/高、文字描述）。
+系统自动关联附近已有风险，避免重复上报。
+维修员查看待处理工单，现场处理后拍照回传，申请关闭工单。
+管理员审核并最终关闭工单，形成"发现—派发—处理—关闭"的闭环。
+
+（5）实时监控与态势感知
+管理端通过Socket.IO实时接收巡检员心跳，获取在线用户列表和实时位置。
+地图上展示在线巡检员位置、路线轨迹、打卡点分布、风险工单位置。
+支持偏离监控：巡检员偏离路线超过阈值时系统可告警。
+
+1.1.3 非功能需求
+
+- 系统响应时间：常规API请求在500ms内响应，空间查询在2s内。
+- 移动端适配：基于Capacitor构建Android原生应用，支持拍照、GPS定位。
+- 安全性：基于Session的认证机制，CORS白名单控制，Cookie安全策略（httpOnly、secure、sameSite）。
+- 可部署性：支持Docker容器化部署（Linux），也可Windows本地运行，使用pkg打包为独立exe。
+- 数据存储：采用SQLite + SpatiaLite，轻量级免安装，适合中小规模部署。
+
+1.2 业务流程分析
+1.2.1 核心业务流程
+
+┌─────────────┐ ┌─────────────┐ ┌──────────────┐ ┌──────────────┐
+│ 管理员创建 │───▶│ 管理员派发 │───▶│ 巡检员激活 │───▶│ 巡检员执行 │
+│ 路线与打卡点│ │ 巡检任务 │ │ 并开始任务 │ │ 逐点打卡 │
+└─────────────┘ └─────────────┘ └──────────────┘ └──────┬───────┘
+│
+┌────────────────────────┼────────────────────┐
+▼ ▼ ▼
+┌──────────┐ ┌──────────────┐ ┌──────────────┐
+│ 正常打卡 │ │ 上报风险工单 │ │ 任务完成通知 │
+│ 拍照+备注 │ │ 拍照+描述 │ │ 管理端更新 │
+└──────────┘ └──────┬───────┘ └──────────────┘
+│
+▼
+┌──────────────┐
+│ 维修员查看 │
+│ 并处理工单 │
+└──────┬───────┘
+│
+▼
+┌──────────────┐
+│ 管理员审核 │
+│ 关闭工单 │
+└──────────────┘
+
+图1-1 核心业务流程图
+
+1.2.2 角色交互说明
+
+- 管理员(admin)：系统配置者，管理用户、路线、打卡点；派发任务；审核工单；查看实时监控。
+- 巡检员(inspector)：任务执行者，通过移动APP登录、选择任务、激活任务、按序打卡、上报风险。
+- 维修员(repair)：工单处理者，通过移动APP查看待处理风险、前往现场、拍照回传、申请关闭。
+- 访客(viewer)：只读观察者，通过Web页面查看区域总览和在线用户态势。
+
+1.3 数据流程分析
+1.3.1 分层数据流图
+
+顶层图（上下文图）：
+
+    ┌──────────┐     登录/任务/打卡/风险      ┌──────────────┐
+    │          │─────────────────────────────▶│              │
+    │  巡检员   │                              │              │
+    │  (APP)   │◀─────────────────────────────│   智能巡检   │
+    │          │     任务数据/打卡结果/通知     │   系统       │
+    └──────────┘                              │              │
+                                              │              │
+    ┌──────────┐     用户管理/路线/派发/审核    │              │
+    │          │─────────────────────────────▶│              │
+    │  管理员   │                              │              │
+    │  (Web)   │◀─────────────────────────────│              │
+    │          │     监控数据/工单列表/统计      │              │
+    └──────────┘                              └──────┬───────┘
+                                                     │
+    ┌──────────┐     查看工单/回传处理              │
+    │          │─────────────────────────────▶       │
+    │  维修员   │                                     │
+    │  (APP)   │◀─────────────────────────────       │
+    │          │     工单数据                        │
+    └──────────┘                                     │
+                                                     │
+    ┌──────────┐     查看总览/在线用户               │
+    │  访客     │─────────────────────────────▶      │
+    │  (Web)   │◀─────────────────────────────       │
+    │          │     区域数据/用户列表                │
+    └──────────┘                              ┌──────┴───────┐
+                                              │  SQLite +    │
+                                              │  SpatiaLite  │
+                                              │  数据库       │
+                                              └──────────────┘
+
+图1-2 系统顶层数据流图
+
+第0层图（系统主要处理）：
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ 智能巡检系统 │
+│ │
+│ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐ │
+│ │ 1.用户 │ │ 2.路线 │ │ 3.任务 │ │ 4.打卡管理 │ │
+│ │ 管理 │ │ 管理 │ │ 管理 │ │ │ │
+│ └────┬─────┘ └────┬─────┘ └────┬─────┘ └──────┬───────┘ │
+│ │ │ │ │ │
+│ ▼ ▼ ▼ ▼ │
+│ ┌──────────────────────────────────────────────────────────────┐ │
+│ │ 数据库 │ │
+│ │ users | route | checkpoint | ongoing_task | checkin | risks │ │
+│ └──────────────────────────────────────────────────────────────┘ │
+│ ▲ ▲ ▲ ▲ │
+│ │ │ │ │ │
+│ ┌────┴─────┐ ┌────┴─────┐ ┌────┴─────┐ ┌──────┴───────┐ │
+│ │ 5.风险 │ │ 6.实时 │ │ 7.统计 │ │ 8.权限 │ │
+│ │ 工单管理 │ │ 监控 │ │ 查询 │ │ 控制 │ │
+│ └──────────┘ └──────────┘ └──────────┘ └──────────────┘ │
+└──────────────────────────────────────────────────────────────────────┘
+
+图1-3 系统第0层数据流图
+
+1.3.2 数据字典
+
+（1）数据项条目
+┌────────────────┬──────────────────────────────────────────────────────┐
+│ 数据项名 │ 说明 │
+├────────────────┼──────────────────────────────────────────────────────┤
+│ UserID │ 用户唯一标识，自增整数，主键 │
+│ Name │ 用户登录名，字符串，不超过50字符 │
+│ Password │ 用户密码，字符串（明文存储，生产环境建议加密） │
+│ Role │ 用户角色，取值：admin/inspector/viewer/repair │
+│ RouteID │ 路线唯一标识，自增整数，主键 │
+│ CheckpointID │ 打卡点唯一标识，自增整数，主键 │
+│ RiskID │ 风险工单唯一标识，自增整数，主键 │
+│ TaskID │ 任务唯一标识，自增整数，主键 │
+│ Longitude │ 经度，浮点数，WGS84坐标系 │
+│ Latitude │ 纬度，浮点数，WGS84坐标系 │
+│ SeqNo │ 打卡点在路线中的序号，整数，在同一路线内唯一 │
+│ RiskLevel │ 风险等级，枚举值：low/medium/high │
+│ Status │ 状态标识，枚举值，不同表中含义不同 │
+│ IsActive │ 任务激活标识，0=未激活，1=已激活 │
+│ RequestClose │ 申请关闭标识，0=未申请，1=已申请 │
+└────────────────┴──────────────────────────────────────────────────────┘
+
+（2）数据流条目
+┌──────────────────┬──────────────────────────────────────────────────────────────┐
+│ 数据流名 │ 说明 │
+├──────────────────┼──────────────────────────────────────────────────────────────┤
+│ 登录请求 │ 用户名 + 密码 → 系统验证 → 返回用户信息 + SessionID │
+│ 心跳包 │ SessionID + 位置经纬度 → 系统 → 返回任务状态/下一打卡点 │
+│ 任务激活请求 │ TaskID + UserID → 系统 → 更新ongoing_task.IsActive=1 │
+│ 打卡提交 │ CheckpointID + 位置 + 照片 + 备注 → 系统 → 推进下一打卡点 │
+│ 风险上报 │ 描述 + 等级 + 位置 + 照片 → 系统 → 创建工单 │
+│ 工单处理 │ RiskID + 文本 + 照片 → 系统 → 追加记录/申请关闭 │
+│ 实时位置广播 │ Socket.IO → 管理端实时更新地图上用户位置 │
+└──────────────────┴──────────────────────────────────────────────────────────────┘
+
+2 智能巡检系统设计
+2.1 系统目标设计
+（1）建立统一的巡检管理平台，实现路线规划、任务派发、打卡执行、风险上报的全流程数字化管理。
+（2）基于GIS空间技术（SpatiaLite），精确管理巡检路线与打卡点的地理位置数据，支持偏离检测。
+（3）通过Socket.IO实现巡检员位置实时上报与管理端态势监控。
+（4）多角色协同：管理员配置、巡检员执行、维修员处理、访客查看，各司其职。
+（5）支持Docker容器化部署和Windows独立EXE打包，适应不同运行环境需求。
+
+2.2 系统功能结构设计
+2.2.1 系统总体功能结构
+
+智能巡检系统
+├── 1. 用户认证模块
+│ ├── 1.1 登录/登出
+│ ├── 1.2 会话管理（Session + Cookie）
+│ └── 1.3 角色权限校验
+│
+├── 2. Web管理后台（admin/viewer）
+│ ├── 2.1 实时态势
+│ │ ├── 2.1.1 实时监控（地图 + 在线用户位置）
+│ │ └── 2.1.2 在线用户列表
+│ ├── 2.2 风险与处置
+│ │ └── 2.2.1 风险工单管理（列表 + 详情 + 关闭）
+│ ├── 2.3 巡检配置
+│ │ ├── 2.3.1 路线管理（增删改查 + 地图绘制）
+│ │ ├── 2.3.2 打卡点管理（按路线配置 + 序号排序）
+│ │ └── 2.3.3 任务派发（为巡检员分配路线）
+│ ├── 2.4 系统管理
+│ │ └── 2.4.1 用户管理（增删改查 + 角色分配）
+│ └── 2.5 访客仪表盘（viewer）
+│ ├── 2.5.1 区域总览地图
+│ └── 2.5.2 在线用户查看
+│
+├── 3. 移动巡检APP（inspector）
+│ ├── 3.1 任务选择与激活
+│ ├── 3.2 任务执行
+│ │ ├── 3.2.1 路线地图展示
+│ │ ├── 3.2.2 打卡点导航与打卡
+│ │ └── 3.2.3 拍照上传
+│ ├── 3.3 风险上报
+│ │ ├── 3.3.1 风险描述 + 等级选择
+│ │ ├── 3.3.2 拍照取证
+│ │ └── 3.3.3 附近风险联想
+│ └── 3.4 实时位置同步
+│
+└── 4. 移动维修APP（repair）
+├── 4.1 工单列表查看
+├── 4.2 工单详情与处理
+│ ├── 4.2.1 查看风险描述与照片
+│ ├── 4.2.2 维修记录回传（文字+拍照）
+│ └── 4.2.3 申请关闭工单
+└── 4.3 实时位置同步
+
+图2-1 系统功能结构图
+
+2.2.2 系统菜单结构
+
+【Web管理后台 - admin】
+实时态势
+├── 实时监控 → /admin/monitor
+└── 在线用户 → /admin/online-users
+风险与处置
+└── 风险处理 → /admin/risks
+└── 风险详情 → /admin/risks/:id
+巡检配置
+├── 路线管理 → /admin/routes-manager
+├── 打卡管理 → /admin/checkpoints
+└── 任务派发 → /admin/tasks-assign
+系统
+└── 用户管理 → /admin/usersManager
+
+【Web管理后台 - viewer】
+监管视图
+├── 区域总览 → /viewer
+└── 在线用户 → /viewer/online-users
+
+【移动APP - inspector】
+├── 任务选择 → TaskSelection 组件
+├── 任务执行 → TaskExecution 组件（含地图）
+└── 风险上报 → RiskSubmit 组件
+
+【移动APP - repair】
+├── 工单列表 → 主页面
+└── 工单详情 → 弹窗处理面板
+
+2.3 数据库设计
+2.3.1 数据库选型
+采用 SQLite + SpatiaLite 扩展：
+
+- SQLite：轻量级、零配置、嵌入式关系型数据库，适合中小规模部署。
+- SpatiaLite：SQLite的空间扩展，支持OGC标准几何类型（POINT、LINESTRING）、坐标系转换（WGS84↔UTM）、空间索引（R-Tree），满足巡检路线与打卡点的空间查询需求。
+
+2.3.2 概念模型（ER图）
+
+┌─────────┐ ┌──────────────┐ ┌─────────────┐
+│ users │1─────N│ ongoing_task │N─────1│ route │
+│ │ │ │ │ │
+│ UserID │ │ TaskID │ │ RouteID │
+│ Name │ │ UserID (FK) │ │ name │
+│ Password│ │ RouteID (FK) │ │ WGS84(几何) │
+│ Role │ │ IsActive │ │ UTM(几何) │
+└───┬─────┘ │ CurrentChkID │ └──────┬──────┘
+│ └──────────────┘ │
+│ │
+│ 1 │ 1
+│ │
+▼ N ▼ N
+┌──────────┐ ┌──────────────┐ ┌────────────────┐
+│ checkin │ │ checkpoint │ │ checkin_policy│
+│ │ │ │ │ │
+│CheckinID │ │CheckpointID │ │ PolicyID │
+│ChkPtID(FK│ │RouteID (FK) │ │ RouteID (FK) │
+│UserID(FK)│ │Name │ │ LoopCount │
+│Result │ │SeqNo │ └────────────────┘
+│PhotoURL │ │Longitude │
+│Note │ │Latitude │
+└──────────┘ └──────────────┘
+
+┌──────────┐
+│ risks │
+│ │
+│ RiskID │
+│Reporter │──FK→ users(UserID)
+│Resolver │──FK→ users(UserID)
+│Related │──FK→ risks(RiskID)
+│Description│
+│RiskLevel │
+│Status │
+│Longitude │
+│Latitude │
+│PhotoURL │
+└──────────┘
+
+图2-2 数据库ER图
+
+关系说明：
+
+- users 1:N ongoing_task（一个用户可有多个任务，一个任务只能属于一个用户）
+- users 1:N checkin（一个用户可有多次打卡记录）
+- users 1:N risks（作为上报人 或 解决人）
+- route 1:N checkpoint（一条路线包含多个打卡点）
+- route 1:N ongoing_task（一条路线可分配给多个任务）
+- route 1:1 checkin_policy（一条路线有一个打卡策略）
+- checkpoint 1:N checkin（一个打卡点可被多次打卡）
+- risks 自引用（RelatedRisk关联已有风险工单）
+
+2.3.3 逻辑模型（完整表结构与字段说明）
+
+（1）users（用户表）
+┌────────────────┬──────────┬────────────────────────────────────────────────┐
+│ 字段名 │ 类型 │ 说明 │
+├────────────────┼──────────┼────────────────────────────────────────────────┤
+│ UserID │ INTEGER │ 主键，自增，用户唯一标识 │
+│ Name │ TEXT │ 用户登录名，NOT NULL │
+│ Password │ TEXT │ 登录密码，NOT NULL（生产环境应使用bcrypt加密） │
+│ Role │ TEXT │ 角色：admin/inspector/viewer/repair，NOT NULL │
+│ CreatedAt │ DATETIME │ 创建时间，默认CURRENT_TIMESTAMP │
+│ UpdatedAt │ DATETIME │ 更新时间，默认CURRENT_TIMESTAMP │
+└────────────────┴──────────┴────────────────────────────────────────────────┘
+主键：UserID
+候选键：Name（用户名应唯一，当前代码中通过应用层保证）
+范式分析：满足3NF，每个非主属性完全函数依赖于主键，无传递依赖。
+
+（2）route（路线表）
+┌────────────────┬──────────┬────────────────────────────────────────────────┐
+│ 字段名 │ 类型 │ 说明 │
+├────────────────┼──────────┼────────────────────────────────────────────────┤
+│ RouteID │ INTEGER │ 主键，自增，路线唯一标识 │
+│ name │ TEXT │ 路线名称，NOT NULL │
+│ WGS84 │ GEOMETRY │ SpatiaLite几何列，LINESTRING类型，SRID=4326 │
+│ UTM │ GEOMETRY │ SpatiaLite几何列，LINESTRING类型，SRID=32651 │
+│ CreatedAt │ DATETIME │ 创建时间 │
+│ UpdatedAt │ DATETIME │ 更新时间 │
+└────────────────┴──────────┴────────────────────────────────────────────────┘
+主键：RouteID
+空间索引：WGS84列建有R-Tree空间索引，用于快速空间查询（如偏离检测）。
+说明：WGS84存储原始GPS坐标，UTM存储投影坐标（用于精确距离计算，zone 51N）。
+
+（3）checkpoint（打卡点表）
+┌────────────────┬──────────┬────────────────────────────────────────────────┐
+│ 字段名 │ 类型 │ 说明 │
+├────────────────┼──────────┼────────────────────────────────────────────────┤
+│ CheckpointID │ INTEGER │ 主键，自增，打卡点唯一标识 │
+│ RouteID │ INTEGER │ 外键，关联route(RouteID)，NOT NULL │
+│ Name │ TEXT │ 打卡点名称，NOT NULL │
+│ SeqNo │ INTEGER │ 在路线中的序号，NOT NULL │
+│ Longitude │ REAL │ 经度（WGS84），NOT NULL │
+│ Latitude │ REAL │ 纬度（WGS84），NOT NULL │
+│ CheckpointType │ TEXT │ 打卡点类型（预留扩展字段） │
+│ Status │ TEXT │ 状态：active/inactive，默认'active' │
+│ CreatedAt │ DATETIME │ 创建时间 │
+│ UpdatedAt │ DATETIME │ 更新时间 │
+└────────────────┴──────────┴────────────────────────────────────────────────┘
+主键：CheckpointID
+外键：RouteID REFERENCES route(RouteID)
+唯一约束：UNIQUE(RouteID, SeqNo)，确保同一路线内序号不重复
+范式分析：满足3NF，无传递依赖。
+
+（4）ongoing_task（进行中任务表）
+┌─────────────────────┬──────────┬───────────────────────────────────────────┐
+│ 字段名 │ 类型 │ 说明 │
+├─────────────────────┼──────────┼───────────────────────────────────────────┤
+│ TaskID │ INTEGER │ 主键，自增，任务唯一标识 │
+│ UserID │ INTEGER │ 外键，关联users(UserID)，NOT NULL │
+│ RouteID │ INTEGER │ 外键，关联route(RouteID)，NOT NULL │
+│ IsActive │ INTEGER │ 是否激活：0=未激活，1=已激活，默认0 │
+│ CurrentCheckpointID │ INTEGER │ 外键，当前应打卡的打卡点ID，可为NULL │
+│ AssignedAt │ DATETIME │ 任务分配时间 │
+└─────────────────────┴──────────┴───────────────────────────────────────────┘
+主键：TaskID
+外键：UserID REFERENCES users(UserID)；RouteID REFERENCES route(RouteID)；
+CurrentCheckpointID REFERENCES checkpoint(CheckpointID)
+说明：一个用户同时只能有一个激活任务（IsActive=1），通过应用层保证。
+
+（5）checkin（打卡记录表）
+┌────────────────┬──────────┬────────────────────────────────────────────────┐
+│ 字段名 │ 类型 │ 说明 │
+├────────────────┼──────────┼────────────────────────────────────────────────┤
+│ CheckinID │ INTEGER │ 主键，自增，打卡记录唯一标识 │
+│ CheckpointID │ INTEGER │ 外键，关联checkpoint(CheckpointID)，NOT NULL │
+│ UserID │ INTEGER │ 外键，关联users(UserID)，NOT NULL │
+│ CheckinTime │ DATETIME │ 打卡时间，默认CURRENT_TIMESTAMP │
+│ Longitude │ REAL │ 打卡时的经度，NOT NULL │
+│ Latitude │ REAL │ 打卡时的纬度，NOT NULL │
+│ Result │ TEXT │ 打卡结果：pass/fail，NOT NULL │
+│ PhotoURL │ TEXT │ 打卡照片路径 │
+│ Note │ TEXT │ 打卡备注 │
+└────────────────┴──────────┴────────────────────────────────────────────────┘
+主键：CheckinID
+外键：CheckpointID REFERENCES checkpoint(CheckpointID)；UserID REFERENCES users(UserID)
+
+（6）risks（风险工单表）
+┌──────────────────┬──────────┬──────────────────────────────────────────────┐
+│ 字段名 │ 类型 │ 说明 │
+├──────────────────┼──────────┼──────────────────────────────────────────────┤
+│ RiskID │ INTEGER │ 主键，自增，工单唯一标识 │
+│ ReporterUserID │ INTEGER │ 外键，上报人，关联users(UserID)，NOT NULL │
+│ Address │ TEXT │ 地址描述（可选） │
+│ Longitude │ REAL │ 经度，NOT NULL │
+│ Latitude │ REAL │ 纬度，NOT NULL │
+│ Description │ TEXT │ 风险描述，NOT NULL │
+│ RiskLevel │ TEXT │ 风险等级：low/medium/high，CHECK约束 │
+│ Status │ TEXT │ 状态：open/resolved，默认'open'，CHECK约束 │
+│ RequestClose │ INTEGER │ 申请关闭：0=未申请，1=已申请，默认0 │
+│ PhotoURL │ TEXT │ 照片路径 │
+│ ReportedAt │ DATETIME │ 上报时间，默认CURRENT_TIMESTAMP │
+│ ResolvedAt │ DATETIME │ 解决时间（关闭时填入） │
+│ RelatedRisk │ INTEGER │ 自引用外键，关联已有风险RiskID │
+│ ResolvedByUserID │ INTEGER │ 外键，解决人，关联users(UserID) │
+│ ResolveNote │ TEXT │ 解决备注 │
+└──────────────────┴──────────┴──────────────────────────────────────────────┘
+主键：RiskID
+外键：ReporterUserID REFERENCES users(UserID)；ResolvedByUserID REFERENCES users(UserID)；
+RelatedRisk REFERENCES risks(RiskID)
+约束：CHECK(RiskLevel IN ('low','medium','high'))；CHECK(Status IN ('open','resolved'))
+
+（7）checkin_policy（打卡策略表）
+┌────────────────┬──────────┬────────────────────────────────────────────────┐
+│ 字段名 │ 类型 │ 说明 │
+├────────────────┼──────────┼────────────────────────────────────────────────┤
+│ PolicyID │ INTEGER │ 主键，自增，策略唯一标识 │
+│ RouteID │ INTEGER │ 外键，关联route(RouteID)，NOT NULL，UNIQUE │
+│ LoopCount │ INTEGER │ 循环巡检次数，默认1 │
+└────────────────┴──────────┴────────────────────────────────────────────────┘
+主键：PolicyID
+外键：RouteID REFERENCES route(RouteID)
+说明：当前版本LoopCount预留，实际巡检按单次线性执行。
+
+2.3.4 关系规范化分析
+
+- 所有表均满足第一范式（1NF）：每个字段都是不可再分的原子值。
+- 所有表均满足第二范式（2NF）：非主属性完全函数依赖于主键（不存在部分依赖，因所有表主键均为单列自增ID）。
+- 所有表均满足第三范式（3NF）：非主属性之间不存在传递函数依赖。例如risks表中ReporterUserID→UserName不存在于表中，需通过JOIN users获取。
+- 未进行BCNF进一步分解，当前设计在功能与性能之间取得平衡。
+
+2.3.5 代码设计
+系统采用统一的ID编码规则：
+
+- 用户ID (UserID)：自增整数，从1开始
+- 路线ID (RouteID)：自增整数，从1开始
+- 打卡点ID (CheckpointID)：自增整数，从1开始
+- 任务ID (TaskID)：自增整数，从1开始
+- 风险工单ID (RiskID)：自增整数，从1开始
+- 角色编码：admin | inspector | viewer | repair（字符串枚举）
+- 风险等级编码：low | medium | high
+- 状态编码：active/inactive（打卡点），open/resolved（工单），pass/fail（打卡结果）
+
+2.4 输入、输出设计
+2.4.1 主要表单界面与运行说明
+
+（1）登录界面
+输入：用户名、密码
+输出：登录成功返回用户信息+SessionID，失败返回错误提示。
+界面元素：两个文本输入框，一个登录按钮。
+
+（2）路线管理界面（/admin/routes-manager）
+输入：地图上点击添加路径点（经度+纬度自动捕获）、路线名称
+输出：路线创建成功，列表中展示所有路线（名称、坐标点数、操作按钮）
+处理流程：1. 管理员点击"新建路线" 2. 在地图上依次点击生成路径点3. 输入路线名称后保存4. 前端发送POST /routes，body={name, coordinates: [[lng,lat],...]} 5. 后端调用addRoute()，将坐标转为WKT LINESTRING，插入route表并生成WGS84/UTM几何列
+关键代码（后端 routeUtils.addRoute）：
+const wkt = buildLineString(coordinates);
+db.prepare("INSERT INTO route (name) VALUES (?)").run(name);
+db.prepare("UPDATE route SET WGS84 = ST_GeomFromText(?, 4326), UTM = ST_Transform(ST_GeomFromText(?, 4326), 32651) WHERE RouteID = ?").run(wkt, wkt, routeId);
+
+（3）打卡点管理界面（/admin/checkpoints）
+输入：选择路线 → 地图上点击添加打卡点或批量导入坐标数组
+输出：该路线下所有打卡点列表（名称、序号、坐标、状态）
+处理流程：1. 管理员选择一条路线 2. 批量添加打卡点（可拖拽调整顺序）3. 前端发送POST /routes/:id/checkpoints，body={checkpoints: [...]} 4. 后端自动计算SeqNo（基于该路线已有最大序号+1），批量插入
+
+（4）任务派发界面（/admin/tasks-assign）
+输入：选择巡检员（下拉）、选择路线（下拉）
+输出：派发成功提示，进行中任务列表更新
+处理流程：1. 管理员选择目标巡检员和路线2. 发送POST /tasks/assign，body={userId, routeId} 3. 后端在ongoing_task表插入记录，IsActive=0，CurrentCheckpointID=路线第一个打卡点
+
+（5）巡检员任务执行界面（APP - TaskExecution）
+输入：当前GPS位置（自动获取）、打卡照片、备注
+输出：路线地图、当前打卡点位置、打卡结果反馈
+地图展示要素：- 蓝色线条：巡检路线轨迹 - 红色标记点：所有打卡点 - 绿色高亮点：当前应打卡点 - 蓝色圆点：巡检员当前位置
+处理流程：1. APP发送心跳包（含sessionId + location）2. 后端返回nextCheckpointId及任务状态3. 巡检员到达打卡点附近，点击打卡4. APP发送POST /checkin（含checkpointId、位置、照片、备注）5. 后端验证位置是否在打卡点容差范围内6. 打卡成功 → 写入checkin表，推进ongoing_task.CurrentCheckpointID到下一打卡点7. 若为最后一个打卡点 → 任务完成，通知管理端
+
+（6）风险上报界面（APP - RiskSubmit）
+输入：风险描述（必填）、风险等级（low/medium/high）、现场照片（可多张）
+输出：上报成功/失败提示，附近已有风险联想列表
+输入约束：- 描述不能为空 - 风险等级必须为low、medium或high之一 - 经纬度由GPS自动填入
+处理流程：1. 巡检员填写描述、选择等级、拍照2. 系统自动查询附近20m内已有风险（GET /risks/nearby）做联想提示3. 提交POST /risks（multipart/form-data，含文本字段+图片文件）4. 后端创建risks记录，保存图片到photo/{RiskID}/目录
+
+（7）风险工单处理界面（APP - RepairPage / Web - RiskManagerPage）
+输入（维修员）：处理文字描述、维修照片、申请关闭
+输入（管理员）：审核确认关闭
+输出：工单状态变更、工单详情面板
+状态流转：
+open → (维修员申请关闭) → requestClose=1 → (管理员审核) → resolved
+
+（8）实时监控界面（/admin/monitor）
+输入：无（自动轮询）
+输出：地图展示在线用户位置、路线轨迹、打卡点、风险工单
+刷新策略：- 在线用户列表：每2秒轮询 GET /online-users - 路线数据：每10秒轮询 GET /routes + GET /routes/:id
+地图交互：点击用户标记查看详情，点击路线高亮轨迹
+
+2.4.2 关键模块处理流程（伪代码）
+
+【打卡验证与任务推进模块】
+function handleCheckin(userId, checkpointId, longitude, latitude): 1. 获取用户当前激活任务: getActiveTaskByUser(userId) 2. 验证当前打卡点匹配: task.currentCheckpointId == checkpointId 3. 验证位置在打卡点范围内: isDistanceWithin(checkpoint, userLoc, tolerance=50m) 4. 写入打卡记录: INSERT INTO checkin (...) 5. 推进任务: advanceActiveTaskCheckpoint(taskId)
+a. 获取路线下一个打卡点: SELECT \* FROM checkpoint WHERE RouteID=? AND SeqNo > ? ORDER BY SeqNo LIMIT 1
+b. 更新CurrentCheckpointID: UPDATE ongoing_task SET CurrentCheckpointID = ? WHERE TaskID = ?
+c. 若无下一打卡点 → 任务完成: endTaskById(taskId) 6. 返回结果（含下一打卡点信息或完成通知）
+
+2.5 系统运行环境
+2.5.1 硬件平台
+
+- 服务器：1核CPU、1GB内存即可运行（轻量级Node.js + SQLite）
+- 存储：数据库文件初始约1MB，随使用增长；照片存储按每张约200KB估算
+- 客户端（Web）：任意支持现代浏览器的PC（Chrome/Firefox/Edge）
+- 客户端（APP）：Android 8.0+设备，支持GPS和摄像头
+
+2.5.2 软件平台
+
+- 服务器端：
+  - 操作系统：Linux (Debian/Ubuntu, Docker容器) 或 Windows 10+
+  - 运行时：Node.js 20/22
+  - 数据库：SQLite 3 + SpatiaLite 扩展 (mod_spatialite)
+  - 框架：Express 5.x、Socket.IO 4.x
+  - 关键依赖：better-sqlite3（同步SQLite驱动）、express-session（会话管理）、multer（文件上传）
+- Web前端：
+  - 框架：React 18 + React Router 6
+  - 构建工具：Vite
+  - 地图引擎：高德地图 JS API 2.0 (AMap)
+  - 语言：JavaScript (JSX)
+- 移动APP：
+  - 框架：Capacitor（跨平台移动运行时）
+  - 打包目标：Android (APK)
+  - 原生能力：@capacitor/camera（拍照）、Geolocation（GPS定位）
+  - 地图：高德地图 JS API（WebView内嵌）
+- 部署方式：
+  - Docker：基于node:22-bookworm-slim镜像，内置libsqlite3-mod-spatialite
+  - 独立EXE：使用@yao-pkg/pkg打包为Windows x64可执行文件
+
+3 系统特色
+3.1 基于SpatiaLite的空间数据管理
+系统不仅存储坐标数值，还利用SpatiaLite空间扩展建立了真正的GIS数据模型。每条路线同时存储WGS84（地理坐标）和UTM（投影坐标）两种几何表示，支持精确的偏离距离计算。通过R-Tree空间索引，路线邻近查询效率远高于传统经纬度计算方式。
+
+3.2 多端协同、实时同步
+系统采用"Web管理端 + 移动执行端"的B/S+APP混合架构。巡检员通过移动APP执行任务时，位置信息通过Socket.IO心跳机制实时同步到管理端地图，管理者可在大屏上直观监控所有在线人员的动态位置与任务进度。
+
+3.3 完整的工单闭环管理
+风险从"发现上报 → 维修处理 → 申请关闭 → 管理员审核"形成完整的闭环链路。每个环节均支持拍照留证与文字记录，确保问题可追溯、责任可认定。
+
+3.4 灵活的部署方案
+系统支持三种部署方式：Docker容器化部署（Linux）、pkg打包独立EXE（Windows）、源码直接运行。SQLite数据库免安装、文件即数据库，极大降低了运维成本，适合中小规模的轻量化部署场景。
+
+3.5 地理围栏与偏离监控
+打卡点采用地理围栏机制，巡检员必须在打卡点50米范围内才能完成打卡，杜绝虚假打卡。路线偏离检测可实时判断巡检员是否在预定路线附近，超出阈值时可触发告警。
+
+3.6 角色细粒度权限控制
+系统定义了四种角色，每种角色拥有明确的权限边界。通过中间件checkRole在API层进行统一鉴权，路由级别控制访问，确保数据安全和操作合规。

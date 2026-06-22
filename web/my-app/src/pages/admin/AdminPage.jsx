@@ -38,41 +38,103 @@ const NAV_GROUPS = [
 const ICONS = {
   monitor: (
     <svg viewBox="0 0 24 24" fill="none" className="nav-icon">
-      <rect x="3" y="4" width="18" height="13" rx="2" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M8 21h8M12 17v4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <rect
+        x="3"
+        y="4"
+        width="18"
+        height="13"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <path
+        d="M8 21h8M12 17v4"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
     </svg>
   ),
   users: (
     <svg viewBox="0 0 24 24" fill="none" className="nav-icon">
       <circle cx="9" cy="9" r="3.2" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M3.5 19c.6-3 3-5 5.5-5s4.9 2 5.5 5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-      <circle cx="17" cy="8.5" r="2.4" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M15 14.5c2.6.2 4.5 1.8 5 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path
+        d="M3.5 19c.6-3 3-5 5.5-5s4.9 2 5.5 5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <circle
+        cx="17"
+        cy="8.5"
+        r="2.4"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <path
+        d="M15 14.5c2.6.2 4.5 1.8 5 4"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
     </svg>
   ),
   shield: (
     <svg viewBox="0 0 24 24" fill="none" className="nav-icon">
-      <path d="M12 3l8 3v6c0 4.5-3.4 8.5-8 9.5-4.6-1-8-5-8-9.5V6l8-3z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-      <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M12 3l8 3v6c0 4.5-3.4 8.5-8 9.5-4.6-1-8-5-8-9.5V6l8-3z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M9 12l2 2 4-4"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   ),
   route: (
     <svg viewBox="0 0 24 24" fill="none" className="nav-icon">
       <circle cx="6" cy="6" r="2.4" stroke="currentColor" strokeWidth="1.7" />
       <circle cx="18" cy="18" r="2.4" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M8 7c5 0 5 4 8 4M16 17c-5 0-5-4-8-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path
+        d="M8 7c5 0 5 4 8 4M16 17c-5 0-5-4-8-4"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
     </svg>
   ),
   pin: (
     <svg viewBox="0 0 24 24" fill="none" className="nav-icon">
-      <path d="M12 22s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z" stroke="currentColor" strokeWidth="1.7" />
+      <path
+        d="M12 22s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
       <circle cx="12" cy="10" r="2.6" stroke="currentColor" strokeWidth="1.7" />
     </svg>
   ),
   task: (
     <svg viewBox="0 0 24 24" fill="none" className="nav-icon">
-      <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M8 9h8M8 13h8M8 17h5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <rect
+        x="3"
+        y="4"
+        width="18"
+        height="16"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <path
+        d="M8 9h8M8 13h8M8 17h5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
     </svg>
   ),
   gear: (
@@ -194,7 +256,9 @@ function Topbar() {
         <span style={{ color: "var(--color-text-soft)" }}>/</span>
         <strong>{meta.title}</strong>
         {meta.subtitle && (
-          <span style={{ color: "var(--color-text-soft)" }}>· {meta.subtitle}</span>
+          <span style={{ color: "var(--color-text-soft)" }}>
+            · {meta.subtitle}
+          </span>
         )}
       </div>
       <div className="right">
@@ -203,31 +267,6 @@ function Topbar() {
         </span>
       </div>
     </header>
-  );
-}
-
-function RisksStub() {
-  return (
-    <div className="card">
-      <div className="card-header">
-        <div className="card-title">风险处理</div>
-        <span className="badge badge-warning">开发中</span>
-      </div>
-      <div className="card-body">
-        <div className="empty">
-          <div className="empty-icon">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
-              <path d="M12 9v4M12 17v.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              <path d="M10.3 3.9L2.6 17a2 2 0 001.7 3h15.4a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-            </svg>
-          </div>
-          <div>风险处理模块即将上线</div>
-          <div style={{ color: "var(--color-text-soft)", fontSize: 12 }}>
-            即将支持：风险上报、审核、关联、关闭、归档
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -244,11 +283,17 @@ function AdminPage({ userInfo, onLogout, apiBaseUrl }) {
               element={
                 <div className="card">
                   <div className="card-header">
-                    <div className="card-title">欢迎回来，{userInfo?.username}</div>
+                    <div className="card-title">
+                      欢迎回来，{userInfo?.username}
+                    </div>
                     <span className="badge badge-primary">管理员</span>
                   </div>
-                  <div className="card-body" style={{ color: "var(--color-text-muted)" }}>
-                    请使用左侧导航进入具体管理模块：实时监控、风险处理、路线 / 打卡点 / 任务管理、用户管理等。
+                  <div
+                    className="card-body"
+                    style={{ color: "var(--color-text-muted)" }}
+                  >
+                    请使用左侧导航进入具体管理模块：实时监控、风险处理、路线 /
+                    打卡点 / 任务管理、用户管理等。
                   </div>
                 </div>
               }
@@ -257,7 +302,14 @@ function AdminPage({ userInfo, onLogout, apiBaseUrl }) {
               path="usersManager"
               element={<UserManagerPage apiBaseUrl={apiBaseUrl} />}
             />
-            <Route path="risks" element={<RisksStub />} />
+            <Route
+              path="risks"
+              element={<RiskManagerPage apiBaseUrl={apiBaseUrl} />}
+            />
+            <Route
+              path="risks/:riskId"
+              element={<RiskDetailPage apiBaseUrl={apiBaseUrl} />}
+            />
             <Route
               path="online-users"
               element={<OnlineUsersPage apiBaseUrl={apiBaseUrl} />}
@@ -278,7 +330,10 @@ function AdminPage({ userInfo, onLogout, apiBaseUrl }) {
               path="tasks-assign"
               element={<TaskAssignPage apiBaseUrl={apiBaseUrl} />}
             />
-            <Route path="*" element={<RisksStub />} />
+            <Route
+              path="*"
+              element={<RiskManagerPage apiBaseUrl={apiBaseUrl} />}
+            />
           </Routes>
         </div>
       </div>
